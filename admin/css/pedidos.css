@@ -178,3 +178,54 @@
 /* venda por unidade com peso aproximado (ex.: panceta ≈500 g) */
 .ped-aprox{display:flex;flex-direction:column;gap:6px;align-self:flex-start}
 .ped-aprox-v{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:700;color:var(--tinta-2)}
+
+/* ---------- forma de pagamento (lista) ---------- */
+.ped-linha .meio .ped-tag{display:inline-flex;overflow:visible}
+.ped-tag-pg{background:transparent;color:var(--tinta-2);box-shadow:inset 0 0 0 1.5px var(--cinza-2)}
+
+/* ---------- preço só deste pedido ---------- */
+.ped-preco-btn{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 6px;border:0;background:none;padding:2px 8px;margin:0 -8px;min-height:40px;border-radius:8px;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.ped-preco-btn > .ic{width:16px;height:16px;color:var(--tinta-2);flex:none}
+.ped-preco-btn:hover{background:var(--cinza)}
+.ped-preco-btn[aria-expanded="true"]{background:var(--cinza)}
+.ped-preco-so{margin:-6px 0;padding:2px 6px;font-size:13px;font-weight:600;color:var(--tinta-2);text-decoration:underline;text-underline-offset:2px}
+.ped-tag-alt{background:#FFF0C2;color:#7A4A00;min-height:20px;font-size:11px;padding:1px 8px}
+.ped-preco-ed{margin:12px 0 0 60px;padding:12px;border-radius:var(--r-s);background:var(--papel);border:1.5px solid var(--cinza-2);display:flex;flex-direction:column;gap:10px}
+.ped-preco-ed[hidden]{display:none}
+.ped-preco-ed .campo{max-width:320px}
+.ped-preco-ed .pre{position:absolute;left:14px;color:var(--tinta-2);font-size:15px;font-weight:700;pointer-events:none}
+.ped-preco-ed .campo-in input{padding-left:42px;font-family:var(--display);font-weight:700;font-size:19px}
+.ped-preco-ed-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.ped-preco-ed-acoes .btn-sm{min-height:44px}
+.ped-preco-volta{min-height:44px;color:#A94A0E;font-weight:700}
+.ped-preco-volta[hidden]{display:none}
+
+/* ---------- pagamento (detalhe) ---------- */
+.ped-pg{display:flex;flex-direction:column;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--cinza)}
+.ped-pg-seg{display:grid;grid-template-columns:repeat(3,1fr)}
+.ped-pg-seg span{justify-content:center;width:100%;min-height:40px;padding:4px 8px}
+.ped-pg [hidden]{display:none!important}
+.ped-pg-nada,.ped-pg-cartao{font-size:14px;color:var(--tinta-2)}
+.ped-troco{min-height:1.3em;font-size:14px}
+.ped-troco-ok{color:var(--ok);font-weight:600}
+.ped-troco-ok .num{font-size:17px}
+.ped-troco-erro{display:inline-flex;align-items:flex-start;gap:6px;color:var(--erro);font-weight:700}
+.ped-troco-erro .ic{width:18px;height:18px;flex:none;margin-top:1px}
+.ped-pix-cx{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.ped-pix-qr{align-self:center;background:#fff;border-radius:var(--r-s);box-shadow:inset 0 0 0 1.5px var(--cinza-2);padding:6px;line-height:0}
+.ped-pix-qr svg{width:196px;height:196px;max-width:100%}
+.ped-pix-info{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.ped-pix-valor{font-size:30px;font-weight:800;line-height:1}
+.ped-pix-id{font-size:13px;color:var(--tinta-2)}
+.ped-pix-id b{font-family:var(--display);letter-spacing:.04em;color:var(--tinta)}
+.ped-pix-cod textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.4;min-height:0;resize:none;word-break:break-all;background:var(--papel);color:var(--tinta)}
+.ped-pix-cx .btn{width:100%;white-space:normal}
+.ped-pix-cx .btn-zap{background:#167A43;color:#fff}
+.ped-pix-cx .btn-zap:hover{background:#11663A}
+.ped-pix-parc{font-size:14px}
+.ped-pix-sem{font-size:14px}
+.ped-pix-sem > div{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.ped-pix-vazio{font-size:14px;color:var(--tinta-2);padding:12px;border:1.5px dashed var(--cinza-2);border-radius:var(--r-s);text-align:center}
+@media (max-width:400px){
+  .ped-preco-ed{margin-left:0}
+}

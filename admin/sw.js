@@ -1,10 +1,10 @@
 // Dopira Gestão: funciona sem internet depois da primeira visita.
 // Página e scripts: rede primeiro (pega a versão nova), cache se estiver offline.
-const VERSAO = 'dopira-gestao-v3';
+const VERSAO = 'dopira-gestao-v5';
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
   './css/base.css', './css/inicio.css', './css/pedidos.css', './css/catalogo.css', './css/promocoes.css',
-  './js/dados.js', './js/ui.js', './js/inicio.js', './js/pedidos.js', './js/catalogo.js', './js/promocoes.js', './js/ajustes.js', './js/app.js',
+  './js/dados.js', './js/ui.js', './js/vendor/qrcode.js', './js/pix.js', './js/inicio.js', './js/pedidos.js', './js/catalogo.js', './js/promocoes.js', './js/ajustes.js', './js/app.js',
   './fonts/bsd.woff2', './fonts/literata.woff2', './fonts/literata-i.woff2',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png', '../img/logo.png'
 ];

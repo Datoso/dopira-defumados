@@ -1,6 +1,7 @@
 /* =====================================================================
    Dopira Gestão · Catálogo e estoque
    Telas: #/catalogo (lista, filtros, ajuste rápido de estoque)
+          #/precos (edição rápida de preço e desconto, um produto por vez)
           #/produto/ID (edição, promoções, estoque e histórico)
    ===================================================================== */
 (function () {
@@ -178,7 +179,10 @@ TELAS.catalogo = {
   render() {
     return `<div class="cab">
         <div><h2>Catálogo</h2><p>Preços, descontos e estoque dos produtos.</p></div>
-        <button type="button" class="btn btn-1" data-novo>${ICON.mais}Novo produto</button>
+        <div class="cat-cab-acoes">
+          <a class="btn btn-2" href="#/precos">${ICON.editar}Editar preços</a>
+          <button type="button" class="btn btn-1" data-novo>${ICON.mais}Novo produto</button>
+        </div>
       </div>
       <div id="catStats">${htmlStats()}</div>
       <div class="cat-ferr">
@@ -214,6 +218,192 @@ TELAS.catalogo = {
     });
   }
 };
+
+/* ---------- tela: edição rápida de preços (#/precos) ----------
+   Cada campo salva sozinho ao sair dele (ou Enter) e só mexe naquele produto. */
+const PRECO_MAX = 100000;
+const fmtPrecoIn = v => v === null || v === undefined ? '' : v.toFixed(2).replace('.', ',');
+const fmtDescIn = v => v ? D.paraInput(v, 1) : '';
+/** Lê o texto do campo. → { v } ou { erro } */
+function lerCampoPreco(tipo, txt) {
+  const t = String(txt || '').trim();
+  if (tipo === 'preco') {
+    if (!t) return { v: null };
+    const n = D.num(t.replace(/%$/, ''));
+    if (n === null) return { erro: 'Use números, ex.: 89,90' };
+    if (n < 0) return { erro: 'O preço não pode ser negativo' };
+    if (n > PRECO_MAX) return { erro: 'Preço alto demais. Confira o valor' };
+    return { v: D.arred(n) };
+  }
+  if (!t) return { v: 0 };
+  const n = D.num(t.replace(/\s*%$/, ''));
+  if (n === null || n < 0 || n > 90) return { erro: 'Desconto de 0 a 90%' };
+  return { v: D.arred(n, 1) };
+}
+const ordemPrecos = () => [...D.estado.produtos.filter(p => p.ativo), ...D.estado.produtos.filter(p => !p.ativo)];
+
+/** Preço final que o cliente paga (prod pode ser um rascunho com preço/desconto digitados). */
+function htmlFinalPreco(p) {
+  if (p.preco === null || p.preco === undefined) return `<span class="cat-sem-preco">Definir preço</span>`;
+  const d = D.descontoDo(p), ef = D.precoEfetivo(p), u = esc(porUnid(p));
+  if (!d.pct) return `<span class="pr-fin-v"><b class="num">${esc(D.reais(p.preco))}</b><small>${u}</small></span><span class="pr-fin-o">sem desconto</span>`;
+  const descP = Number(p.desconto) || 0;
+  const origem = d.origem === 'promocao' && d.promo
+    ? `Promoção “${esc(d.promo.nome || 'sem nome')}”${descP > 0 ? ` <span class="pr-fin-n">(vale mais que os ${esc(D.fmtNum(descP, 1))}% do produto)</span>` : ''}`
+    : 'Desconto do produto';
+  return `<span class="pr-fin-v"><b class="num">${esc(D.reais(ef))}</b><small>${u}</small><span class="pill tag-promo">−${esc(D.fmtNum(d.pct, 1))}%</span></span>
+    <span class="pr-fin-o">${origem}</span>`;
+}
+
+function linhaPreco(p, i) {
+  const ip = `prPreco${i}`, idd = `prDesc${i}`;
+  return `<li class="pr-linha${p.ativo ? '' : ' inativo'}" data-id="${esc(p.id)}">
+    <div class="pr-id">${UI.miniatura(p, 44)}
+      <div class="pr-nome"><b id="prNome${i}">${esc(p.nome)}</b><span>${esc(D.nomeVenda(p))}${p.ativo ? '' : ` · ${tagInativo}`}</span></div>
+      <span class="pr-st" id="prSt${i}" role="status" aria-live="polite"></span>
+    </div>
+    <div class="pr-campo pr-c-preco">
+      <label for="${ip}">Preço <span class="sr">de ${esc(p.nome)}</span></label>
+      <div class="pr-in"><span class="pr-pre" aria-hidden="true">R$</span>
+        <input id="${ip}" data-campo="preco" inputmode="decimal" autocomplete="off" enterkeyhint="next" placeholder="Definir" value="${esc(fmtPrecoIn(p.preco))}" aria-describedby="prFin${i}">
+        <span class="pr-suf" aria-hidden="true">${esc(porUnid(p))}</span></div>
+    </div>
+    <div class="pr-campo pr-c-desc">
+      <label for="${idd}">Desconto <span class="sr">de ${esc(p.nome)}</span></label>
+      <div class="pr-in"><input id="${idd}" data-campo="desconto" inputmode="decimal" autocomplete="off" enterkeyhint="next" placeholder="0" value="${esc(fmtDescIn(p.desconto))}" aria-describedby="prFin${i}">
+        <span class="pr-suf" aria-hidden="true">%</span></div>
+    </div>
+    <div class="pr-final" id="prFin${i}"><span class="pr-fin-r">Cliente paga</span>${htmlFinalPreco(p)}</div>
+  </li>`;
+}
+
+TELAS.precos = {
+  titulo: 'Preços', nav: 'catalogo', voltar: '#/catalogo',
+  render() {
+    const ps = ordemPrecos();
+    if (!ps.length) return UI.vazio('Nenhum produto', 'Cadastre produtos no catálogo primeiro.', '<a class="btn btn-1" href="#/catalogo">Ir para o catálogo</a>');
+    const com = ps.filter(p => p.preco !== null && p.preco !== undefined).length;
+    return `<div class="cab pr-cab">
+        <div><h2>Preços</h2><p>Edite um produto por vez: cada campo salva sozinho quando você sai dele ou aperta Enter.</p></div>
+        ${com ? `<button type="button" class="btn btn-2" id="prReajuste" data-reajuste>${ICON.editar}Reajustar todos</button>` : ''}
+      </div>
+      <p class="dica pr-nota">Descontos não somam: o cliente paga com o maior entre o desconto do produto e o de uma promoção ativa. <a class="btn-link" href="#/promocoes">Promoções</a></p>
+      <div class="pr-cabcol" aria-hidden="true"><span>Produto</span><span>Preço</span><span>Desconto</span><span>Cliente paga</span></div>
+      <ul class="pr-lista" id="prLista">${ps.map(linhaPreco).join('')}</ul>`;
+  },
+  montar(el) {
+    const lista = $('#prLista', el); if (!lista) return;
+    const tempos = new WeakMap();
+    const campoDe = inp => inp.closest('.pr-campo');
+    const mostrarErro = (inp, msg) => {
+      const c = campoDe(inp); c.setAttribute('data-erro', '');
+      inp.setAttribute('aria-invalid', 'true');
+      let m = $('.pr-erro', c);
+      if (!m) { m = document.createElement('small'); m.className = 'pr-erro'; m.id = inp.id + 'Erro'; m.setAttribute('role', 'alert'); c.appendChild(m); }
+      m.textContent = msg;
+      inp.setAttribute('aria-describedby', `${m.id} ${inp.getAttribute('aria-describedby').split(' ').pop()}`);
+    };
+    const limparErro = inp => {
+      const c = campoDe(inp); c.removeAttribute('data-erro'); inp.removeAttribute('aria-invalid');
+      const m = $('.pr-erro', c); if (m) m.remove();
+      inp.setAttribute('aria-describedby', inp.getAttribute('aria-describedby').split(' ').pop());
+    };
+    const status = (linha, txt, tipo) => {
+      const s = $('.pr-st', linha); clearTimeout(tempos.get(s));
+      s.textContent = txt; s.dataset.tipo = tipo || '';
+      if (tipo === 'ok') tempos.set(s, setTimeout(() => { s.textContent = ''; s.dataset.tipo = ''; }, 2200));
+    };
+    /** Produto com o que está digitado na linha (campos inválidos usam o valor salvo). */
+    const rascunho = (linha, p) => {
+      const r = { ...p };
+      $$('input[data-campo]', linha).forEach(i => { const x = lerCampoPreco(i.dataset.campo, i.value); if (!x.erro) r[i.dataset.campo] = x.v; });
+      return r;
+    };
+    const atualizarFinal = (linha, p) => { $('.pr-final', linha).innerHTML = `<span class="pr-fin-r">Cliente paga</span>${htmlFinalPreco(p)}`; };
+    /** Salva só o campo deste produto. Retorna false se o valor for inválido. */
+    const salvarCampo = inp => {
+      const linha = inp.closest('.pr-linha'), p = D.produto(linha.dataset.id);
+      if (!p) { status(linha, 'Produto não existe mais', 'erro'); return false; }
+      const tipo = inp.dataset.campo, r = lerCampoPreco(tipo, inp.value);
+      if (r.erro) { mostrarErro(inp, r.erro); status(linha, 'Não salvo', 'erro'); atualizarFinal(linha, rascunho(linha, p)); return false; }
+      limparErro(inp);
+      inp.value = tipo === 'preco' ? fmtPrecoIn(r.v) : fmtDescIn(r.v);
+      const atual = tipo === 'preco' ? (p.preco ?? null) : (Number(p.desconto) || 0);
+      const outroErro = !!$('[data-erro]', linha);
+      if (r.v !== atual) { p[tipo] = r.v; D.salvar(); status(linha, 'Salvo ✓', 'ok'); }
+      else if (!outroErro && $('.pr-st', linha).dataset.tipo === 'erro') status(linha, '');
+      atualizarFinal(linha, rascunho(linha, p));
+      return true;
+    };
+    lista.addEventListener('input', e => {
+      const inp = e.target.closest('input[data-campo]'); if (!inp) return;
+      const linha = inp.closest('.pr-linha'), p = D.produto(linha.dataset.id); if (!p) return;
+      atualizarFinal(linha, rascunho(linha, p));   // prévia enquanto digita
+    });
+    lista.addEventListener('change', e => { const inp = e.target.closest('input[data-campo]'); if (inp) salvarCampo(inp); });
+    lista.addEventListener('keydown', e => {
+      const inp = e.target.closest('input[data-campo]'); if (!inp) return;
+      if (e.key === 'Escape') {   // desfaz o que foi digitado e não salvo
+        const linha = inp.closest('.pr-linha'), p = D.produto(linha.dataset.id); if (!p) return;
+        inp.value = inp.dataset.campo === 'preco' ? fmtPrecoIn(p.preco) : fmtDescIn(p.desconto);
+        limparErro(inp); if (!$('[data-erro]', linha)) status(linha, ''); atualizarFinal(linha, rascunho(linha, p));
+        return;
+      }
+      if (e.key !== 'Enter' || e.isComposing) return;
+      e.preventDefault();
+      if (!salvarCampo(inp)) { inp.select(); return; }
+      const todos = $$('input[data-campo]', lista), prox = todos[todos.indexOf(inp) + 1];
+      if (prox) { prox.focus(); prox.select(); } else inp.blur();
+    });
+    const rj = $('[data-reajuste]', el);
+    if (rj) rj.addEventListener('click', async () => { if (await dialogoReajuste()) App.redesenhar(); });
+  }
+};
+
+/* ---------- diálogo: reajustar todos os preços em X% ---------- */
+function dialogoReajuste() {
+  const alvo = () => ordemPrecos().filter(p => p.preco !== null && p.preco !== undefined);
+  const novoPreco = (p, pct) => Math.max(0, D.arred(p.preco * (1 + pct / 100)));
+  const lerPct = txt => { const n = D.num(String(txt || '').trim().replace(/\s*%$/, '')); return n === null || n === 0 || n < -90 || n > 200 ? null : n; };
+  let feito = 0;
+  const ps = alvo(), sem = D.estado.produtos.length - ps.length;
+  return UI.abrirDialogo({
+    titulo: 'Reajustar todos',
+    html: `<form class="form" novalidate>
+      <div class="aviso">${ICON.alerta}<span>Muda o preço de <b>todos os ${ps.length} produtos com preço</b>${ps.some(p => !p.ativo) ? ' (inclusive os inativos)' : ''} de uma vez. ${sem ? `${sem === 1 ? '1 produto sem preço fica' : `${sem} produtos sem preço ficam`} como está. ` : ''}Descontos e promoções não mudam.</span></div>
+      ${UI.campo({ id: 'rjPct', rotulo: 'Reajuste', sufixo: '%', dica: 'Use número negativo para baixar, ex.: −5. Arredonda para centavos.', attrs: 'inputmode="text" autocomplete="off" placeholder="Ex.: 10"' })}
+      <div class="rj-prev" id="rjPrev" aria-live="polite"></div>
+    </form>`,
+    botoes: [
+      { texto: 'Cancelar', classe: 'btn-2', valor: null },
+      { texto: 'Reajustar', classe: 'btn-1', valor: 'ok', antes(d) {
+        limparErros(d);
+        const pct = lerPct($('#rjPct', d).value);
+        if (pct === null) { erro(d, 'rjPct', 'Informe um percentual entre −90 e 200 (diferente de zero).'); focarErro(d); return false; }
+        alvo().forEach(p => { const n = novoPreco(p, pct); if (n !== p.preco) { p.preco = n; feito++; } });
+        D.salvar();
+        feito = feito || -1;
+      } }
+    ],
+    montar(d) {
+      const inp = $('#rjPct', d), prev = $('#rjPrev', d), btn = $('[data-dlg-btn="1"]', d);
+      const calc = () => {
+        const pct = lerPct(inp.value);
+        btn.textContent = pct === null ? 'Reajustar' : `Reajustar ${ps.length} ${ps.length === 1 ? 'preço' : 'preços'}`;
+        if (pct === null) { prev.innerHTML = `<p class="muted">Digite o percentual para ver como fica.</p>`; return; }
+        prev.innerHTML = `<p class="rj-tit">${pct > 0 ? 'Aumento' : 'Redução'} de ${esc(D.fmtNum(Math.abs(pct), 2))}%</p>
+          <ul class="rj-lista">${ps.map(p => `<li><span class="rj-n">${esc(p.nome)}</span>
+            <span class="rj-v"><s class="num">${esc(D.reais(p.preco))}</s> → <b class="num">${esc(D.reais(novoPreco(p, pct)))}</b><small>${esc(porUnid(p))}</small></span></li>`).join('')}</ul>`;
+      };
+      inp.addEventListener('input', () => { limparErros(d); calc(); });
+      calc();
+    }
+  }).then(v => {
+    if (v !== 'ok' || !feito) return false;
+    UI.toast(feito > 0 ? `${feito} ${feito === 1 ? 'preço reajustado' : 'preços reajustados'}` : 'Nenhum preço mudou');
+    return feito > 0;
+  });
+}
 
 /* ---------- diálogo: novo produto ---------- */
 function novoProduto() {

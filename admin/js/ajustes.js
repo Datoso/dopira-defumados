@@ -1,7 +1,7 @@
 /* =====================================================================
    Dopira Gestão · Ajustes
-   Backup (baixar/restaurar), dados de exemplo, apagar tudo,
-   instalar o app (PWA) e sobre.
+   Pix para receber, backup (baixar/restaurar), dados de exemplo,
+   apagar tudo, instalar o app (PWA) e sobre.
    ===================================================================== */
 (function () {
 'use strict';
@@ -14,6 +14,7 @@ const IC = {
   restaurar: svgPeq('<path d="M12 20V8M7 13l5-5 5 5M5 4h14"/>'),
   celular:   svgPeq('<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>'),
   info:      svgPeq('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>'),
+  pix:       svgPeq('<path d="M12 2.5 21.5 12 12 21.5 2.5 12Z"/><path d="m8 12 4-4 4 4-4 4Z"/>'),
   teste:     svgPeq('<path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21.5h11.6a2 2 0 0 0 1.7-3L14 9V3"/><path d="M7 15h10"/>')
 };
 
@@ -59,6 +60,103 @@ function mostrarInstrucoes() {
   });
 }
 window.DopiraInstalar = { pedir: pedirInstalacao, get disponivel() { return !!promptInstalar; }, instalado: ehStandalone };
+
+/* ---------- Pix para receber ---------- */
+const DICA_TIPO = {
+  celular:   { ph: '(18) 99649-1204', im: 'tel' },
+  cpf:       { ph: '000.000.000-00', im: 'numeric' },
+  cnpj:      { ph: '00.000.000/0000-00', im: 'numeric' },
+  email:     { ph: 'voce@email.com', im: 'email' },
+  aleatoria: { ph: '123e4567-e89b-12d3-a456-426614174000', im: 'text' }
+};
+/** Mostra a chave salva de um jeito fácil de ler: +5518996491204 → (18) 99649-1204 */
+function chaveLegivel(c) {
+  if (!c || !c.chave) return '';
+  if (c.tipo === 'celular') { const d = c.chave.replace(/\D/g, '').replace(/^55/, ''); return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : c.chave; }
+  if (c.tipo === 'cpf' && c.chave.length === 11) return c.chave.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if (c.tipo === 'cnpj' && c.chave.length === 14) return c.chave.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return c.chave;
+}
+const nomeNoBanco = n => String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 .,\-\/@+]/g, '').trim().slice(0, 25).toUpperCase();
+function codigoTeste() {
+  const c = Pix.config();
+  try { return Pix.codigo({ chave: c.chave, nome: c.nome, cidade: c.cidade, valor: 1, txid: 'DOPIRATESTE', mensagem: 'Teste Dopira' }); } catch (e) { return ''; }
+}
+function htmlPixTeste() {
+  if (!Pix.pronto()) return `<div class="aj-pix-vazio"><b>Ainda sem chave Pix.</b> Depois de salvar, aparece aqui um código de teste para você conferir no app do seu banco.</div>`;
+  const c = Pix.config(), cod = codigoTeste();
+  return `<div class="aj-pix-teste">
+    <div class="aj-pix-qr">${Pix.qrSVG(cod, 148)}</div>
+    <div class="aj-pix-teste-txt">
+      <h4>Código de teste de R$ 1,00</h4>
+      <p>Pague com o app do seu banco (Pix copia e cola ou lendo o QR) e <b>confira se o nome que aparece é o seu</b> antes de usar nos pedidos.</p>
+      <p class="aj-pix-quem">Recebedor: <b>${esc(nomeNoBanco(c.nome))}</b> · chave ${esc(chaveLegivel(c))}</p>
+      <label class="sr" for="ajPixCod">Código Pix de teste</label>
+      <textarea id="ajPixCod" class="aj-pix-cod" readonly rows="3" spellcheck="false">${esc(cod)}</textarea>
+      <button type="button" class="btn btn-2 btn-sm" data-pix-copiar>${ICON.copiar} Copiar código de teste</button>
+    </div>
+  </div>`;
+}
+function htmlPix() {
+  const c = Pix.config(), tipo = Pix.TIPOS.some(t => t.id === c.tipo) ? c.tipo : 'celular', dt = DICA_TIPO[tipo];
+  return `<section class="card aj-card aj-pix" aria-labelledby="tPix">
+    <h3 id="tPix">${IC.pix} Pix para receber ${Pix.pronto() ? '<span class="pill tag-ok aj-pix-st" id="ajPixSt">Ativo</span>' : '<span class="pill tag-baixo aj-pix-st" id="ajPixSt">Falta cadastrar</span>'}</h3>
+    <p>O código Pix de cada pedido é gerado aqui no próprio app, <b>sem taxa e sem banco intermediário</b>: o dinheiro cai direto na conta da chave.</p>
+    <div class="aj-pix-grade">
+      <form class="form aj-pix-form" id="ajPixForm" novalidate>
+        <div class="campo">
+          <label for="ajPixTipo">Tipo de chave</label>
+          <div class="campo-in"><select id="ajPixTipo">${Pix.TIPOS.map(t => `<option value="${esc(t.id)}" ${t.id === tipo ? 'selected' : ''}>${esc(t.nome)}</option>`).join('')}</select></div>
+        </div>
+        <div class="campo" id="ajPixChaveC">
+          <label for="ajPixChave">Chave Pix</label>
+          <div class="campo-in"><input id="ajPixChave" value="${esc(chaveLegivel(c))}" placeholder="${esc(dt.ph)}" inputmode="${dt.im}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="ajPixChaveE"></div>
+          <small class="dica aj-erro" id="ajPixChaveE" aria-live="polite"></small>
+        </div>
+        <div class="campo" id="ajPixNomeC">
+          <label for="ajPixNome">Nome do recebedor</label>
+          <div class="campo-in"><input id="ajPixNome" value="${esc(c.nome)}" maxlength="25" autocomplete="off" placeholder="Como aparece no banco" aria-describedby="ajPixNomeD ajPixNomeE"></div>
+          <small class="dica" id="ajPixNomeD">Como aparece no seu banco, até 25 letras (vai sem acento).</small>
+          <small class="dica aj-erro" id="ajPixNomeE" aria-live="polite"></small>
+        </div>
+        <div class="campo">
+          <label for="ajPixCidade">Cidade</label>
+          <div class="campo-in"><input id="ajPixCidade" value="${esc(c.cidade || 'Pirapozinho')}" maxlength="15" autocomplete="off"></div>
+        </div>
+        <div class="aj-acoes"><button type="submit" class="btn btn-1" data-pix-salvar>${ICON.check} Salvar chave Pix</button></div>
+      </form>
+      <div id="ajPixTeste" aria-live="polite">${htmlPixTeste()}</div>
+    </div>
+  </section>`;
+}
+function montarPix(raiz) {
+  const f = $('#ajPixForm', raiz); if (!f) return;
+  const tipo = $('#ajPixTipo', f), chave = $('#ajPixChave', f), nome = $('#ajPixNome', f), cidade = $('#ajPixCidade', f);
+  const erro = (campo, el, msg) => { if (msg) campo.dataset.erro = '1'; else delete campo.dataset.erro; el.textContent = msg || ''; };
+  tipo.addEventListener('change', () => {
+    const dt = DICA_TIPO[tipo.value] || DICA_TIPO.celular;
+    chave.placeholder = dt.ph; chave.inputMode = dt.im;
+    erro($('#ajPixChaveC', f), $('#ajPixChaveE', f), '');
+    chave.focus();
+  });
+  chave.addEventListener('input', () => erro($('#ajPixChaveC', f), $('#ajPixChaveE', f), ''));
+  nome.addEventListener('input', () => erro($('#ajPixNomeC', f), $('#ajPixNomeE', f), ''));
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const r = Pix.normalizarChave(chave.value, tipo.value);
+    const n = nome.value.trim().replace(/\s+/g, ' ');
+    erro($('#ajPixChaveC', f), $('#ajPixChaveE', f), r.erro || '');
+    erro($('#ajPixNomeC', f), $('#ajPixNomeE', f), n ? (nomeNoBanco(n) ? '' : 'Use letras no nome') : 'Informe o nome do recebedor');
+    if (r.erro) { chave.focus(); return; }
+    if (!n || !nomeNoBanco(n)) { nome.focus(); return; }
+    D.estado.pix = { chave: r.chave, tipo: tipo.value, nome: n, cidade: cidade.value.trim().replace(/\s+/g, ' ') || 'Pirapozinho' };
+    D.salvar();
+    chave.value = chaveLegivel(D.estado.pix); nome.value = n; cidade.value = D.estado.pix.cidade;
+    $('#ajPixTeste', raiz).innerHTML = htmlPixTeste();
+    const st = $('#ajPixSt', raiz); if (st) { st.className = 'pill tag-ok aj-pix-st'; st.textContent = 'Ativo'; }
+    UI.toast('Chave Pix salva. Faça o teste de R$ 1,00');
+  });
+}
 
 /* ---------- backup ---------- */
 const ultimoBackup = () => { try { return localStorage.getItem(CHAVE_BACKUP) || ''; } catch (e) { return ''; } };
@@ -136,9 +234,19 @@ function render() {
   const temDados = est.pedidos.length > 0 || est.produtos.some(p => p.preco !== null);
   const instalado = ehStandalone();
   return `<div class="aj">
-    <header class="cab"><div><h2>Ajustes</h2><p>Backup, dados de teste e instalação do app.</p></div></header>
+    <header class="cab"><div><h2>Ajustes</h2><p>Pix, backup, dados de teste e instalação do app.</p></div></header>
+
+
+    ${htmlPix()}
 
     <p class="aj-intro">${ICON.caixa}<span>Os dados ficam salvos <b>só neste aparelho</b>, no navegador. Faça backup de vez em quando para não perder nada, e para passar tudo para outro celular ou computador.</span></p>
+
+    <section class="card aj-card aj-publicar" aria-labelledby="tPub">
+      <h3 id="tPub">${UI.ICON.site} Preços e Pix no site</h3>
+      <p>O site mostra os preços e gera o Pix com o valor <b>antes</b> do cliente mandar a encomenda no WhatsApp. Sempre que mudar preços, descontos, promoções, cupons ou a chave Pix, gere o arquivo <b>precos.json</b> e coloque na pasta do site (no GitHub: <i>Add file › Upload files</i> no repositório dopira-defumados).</p>
+      <p class="aj-meta">${(() => { const d = D.dadosPublicos(); const sem = d.produtos.filter(p => p.ativo && p.preco === null).length; return `${sem ? `<b>${sem} produto(s) sem preço</b> vão aparecer como “Sob consulta”. ` : 'Todos os produtos ativos têm preço. '}${d.pix ? 'Chave Pix cadastrada.' : '<b>Sem chave Pix:</b> o site não gera o código até você cadastrar.'}`; })()}</p>
+      <div class="aj-acoes"><button type="button" class="btn btn-1" data-publicar>${ICON.baixar} Gerar precos.json</button></div>
+    </section>
 
     <div class="aj-grade">
       <section class="card aj-card" aria-labelledby="tBackup">
@@ -189,7 +297,15 @@ function montar(el) {
   const raiz = $('.aj', el); if (!raiz) return;
   raiz.addEventListener('click', async e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.hasAttribute('data-baixar')) baixarBackup();
+    if (b.hasAttribute('data-pix-copiar')) { const c = codigoTeste(); if (c) UI.copiar(c, 'Código de teste copiado'); }
+    else if (b.hasAttribute('data-baixar')) baixarBackup();
+    else if (b.hasAttribute('data-publicar')) {
+      const blob = new Blob([JSON.stringify(D.dadosPublicos(), null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = 'precos.json'; a.style.display = 'none'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      UI.toast('precos.json baixado. Envie para a pasta do site.');
+    }
     else if (b.hasAttribute('data-instalar')) pedirInstalacao();
     else if (b.hasAttribute('data-apagar')) apagarTudo();
     else if (b.hasAttribute('data-apagar-ex')) {
@@ -202,6 +318,7 @@ function montar(el) {
       D.carregarExemplo(); App.redesenhar(); UI.toast('Dados de exemplo carregados');
     }
   });
+  montarPix(raiz);
   const arq = $('#arqBackup', raiz);
   arq.addEventListener('change', () => { const f = arq.files && arq.files[0]; arq.value = ''; restaurarBackup(f); });
 }

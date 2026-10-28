@@ -73,6 +73,7 @@ function htmlLinha(p) {
   const tags = [
     `<span class="ped-modo">${esc(p.modo || 'Entrega')}</span>`,
     p.origem === 'site' ? '<span class="ped-tag ped-tag-site">Site</span>' : '',
+    p.pagamento ? `<span class="ped-tag ped-tag-pg" title="Forma de pagamento">${esc(p.pagamento)}</span>` : '',
     p.pago ? '<span class="ped-tag ped-tag-pago">Pago</span>' : ''
   ].join('');
   return `<a class="linha ped-linha${p.status === 'cancelado' ? ' ped-cancelado' : ''}" href="#/pedido/${encodeURIComponent(p.id)}">
@@ -216,10 +217,23 @@ window.addEventListener('pageshow', e => { if (e.persisted && /^#\/pedido\//.tes
 
 /** Venda por unidade com peso aproximado: peso total aproximado do item (kg) ou null. */
 const pesoAproxItem = (prod, qtd) => prod && prod.venda === 'un' && prod.pesoAprox > 0 ? D.arred((Number(qtd) || 0) * prod.pesoAprox, 3) : null;
-function textoPreco(l, ped) {
-  const prod = l.prod; if (!prod) return '<span class="muted">Produto removido</span>';
-  const un = esc(D.rotuloVenda(prod));
-  if (l.preco === null) return `<a class="ped-falta" href="#/produto/${encodeURIComponent(prod.id)}">Definir preço</a>`;
+/* ---------- preço por item (só deste pedido) ----------
+   it.preco + sem it.precoAuto = preço digitado à mão neste pedido.
+   it.preco + it.precoAuto   = preço congelado na confirmação (dados.js). */
+const temPrecoManual = it => it.preco !== undefined && it.preco !== null && !it.precoAuto;
+const precoCatalogo = (prod, ped) => prod ? D.precoNoPedido(prod, ped) : null;
+function precoAlterado(l, ped) {
+  if (!temPrecoManual(l.item)) return false;
+  const cat = precoCatalogo(l.prod, ped);
+  return cat === null || D.arred(cat) !== D.arred(l.preco);
+}
+function conteudoPreco(l, ped) {
+  const prod = l.prod, un = esc(D.rotuloVenda(prod));
+  if (temPrecoManual(l.item)) {
+    const cat = precoCatalogo(prod, ped);
+    if (!precoAlterado(l, ped)) return `<span class="num">${esc(D.reais(l.preco))}${un}</span>`;
+    return `${cat !== null ? `<s class="muted">${esc(D.reais(cat))}</s> ` : ''}<span class="num">${esc(D.reais(l.preco))}${un}</span> <span class="pill ped-tag-alt">preço alterado</span>`;
+  }
   if (l.item.preco !== undefined && l.item.preco !== null) return `<span class="num">${esc(D.reais(l.preco))}${un}</span> <small class="muted">preço da confirmação</small>`;
   const d = D.descontoDo(prod, D.diaDoPedido(ped));
   if (d.pct > 0 && prod.preco !== null) {
@@ -227,6 +241,28 @@ function textoPreco(l, ped) {
     return `<s class="muted">${esc(D.reais(prod.preco))}</s> <span class="num">${esc(D.reais(l.preco))}${un}</span> <span class="pill tag-promo">${esc(rot)}</span>`;
   }
   return `<span class="num">${esc(D.reais(l.preco))}${un}</span>`;
+}
+function textoPreco(l, ped, i) {
+  const prod = l.prod; if (!prod) return '<span class="muted">Produto removido</span>';
+  const nome = esc(prod.nome);
+  if (l.preco === null) return `<a class="ped-falta" href="#/produto/${encodeURIComponent(prod.id)}">Definir preço</a>
+    <button type="button" class="ped-preco-btn ped-preco-so" data-edpreco="${i}" aria-expanded="false">ou só neste pedido${ICON.editar}</button>`;
+  return `<button type="button" class="ped-preco-btn" data-edpreco="${i}" aria-expanded="false" aria-label="Preço de ${nome}: ${esc(D.reais(l.preco))}. Toque para alterar só neste pedido">${conteudoPreco(l, ped)}${ICON.editar}</button>`;
+}
+function htmlEditorPreco(ped, l, i) {
+  const prod = l.prod, it = l.item, suf = D.rotuloVenda(prod);
+  const cat = precoCatalogo(prod, ped);
+  return `<div class="ped-preco-ed" data-preco-ed="${i}" hidden>
+    <div class="campo">
+      <label for="pdPr${i}">Preço neste pedido</label>
+      <div class="campo-in"><span class="pre" aria-hidden="true">R$</span><input id="pdPr${i}" data-preco="${i}" inputmode="decimal" autocomplete="off" value="${esc(l.preco !== null ? D.paraInput(l.preco, 2) : '')}" placeholder="0,00" style="padding-right:${Math.min(160, 18 + suf.length * 8)}px" aria-describedby="pdPrD${i}"><span class="suf">${esc(suf)}</span></div>
+      <small class="dica" id="pdPrD${i}">${cat !== null ? `Catálogo: ${esc(D.reais(cat))}${esc(suf)}. ` : 'Sem preço no catálogo. '}Muda só este pedido.</small>
+    </div>
+    <div class="ped-preco-ed-acoes">
+      <button type="button" class="btn btn-3 btn-sm" data-prok="${i}">Pronto</button>
+      <button type="button" class="btn-link ped-preco-volta" data-prvolta="${i}" ${temPrecoManual(it) ? '' : 'hidden'}>Voltar ao preço do catálogo</button>
+    </div>
+  </div>`;
 }
 function textoValor(l) {
   if (l.valor !== null) return `<b class="num">${l.estimado ? '≈ ' : ''}${esc(D.reais(l.valor))}</b>`;
@@ -249,10 +285,11 @@ function htmlItem(ped, l, i) {
       ${UI.miniatura(prod, 48)}
       <div class="ped-item-nome">
         <b>${prod ? esc(prod.nome) : 'Produto removido'}</b>
-        <span class="ped-item-preco">${textoPreco(l, ped)}</span>
+        <span class="ped-item-preco" data-precotxt="${i}">${textoPreco(l, ped, i)}</span>
       </div>
       <button type="button" class="btn-ic ped-rm" data-rm="${i}" aria-label="Remover ${esc(prod ? prod.nome : 'item')}">${ICON.lixo}</button>
     </div>
+    ${prod ? htmlEditorPreco(ped, l, i) : ''}
     <div class="ped-item-campos">
       <div class="ped-q">
         <span class="ped-rot" id="pdQr${i}">${prod && prod.venda === 'un' ? 'Unidades' : 'Peças'}</span>
@@ -328,6 +365,73 @@ function htmlStatus(ped) {
   </div>`;
 }
 
+/* ---------- pagamento ---------- */
+const FORMAS = D.PAGAMENTOS.filter(Boolean);   // Pix · Dinheiro · Cartão
+const troco = (ped, t) => ped.pagamento === 'Dinheiro' && ped.trocoPara > 0 ? D.arred(ped.trocoPara - t.total) : null;
+/** "Pix", "dinheiro (troco para R$ 250,00)", "cartão na maquininha, na entrega" ou '' */
+function textoPagamento(ped, t, cliente) {
+  if (ped.pagamento === 'Pix') return 'Pix';
+  if (ped.pagamento === 'Dinheiro') {
+    const tr = troco(ped, t);
+    return `dinheiro${tr !== null && tr > 0 ? ` (troco para ${D.reais(ped.trocoPara)}${cliente ? '' : `: levar ${D.reais(tr)}`})` : tr === 0 ? ' (sem troco)' : ''}`;
+  }
+  if (ped.pagamento === 'Cartão') return `cartão, na maquininha na ${ped.modo === 'Retirada' ? 'retirada' : 'entrega'}`;
+  return '';
+}
+function htmlTroco(ped, t) {
+  const tr = troco(ped, t);
+  if (tr === null) return t.total > 0 ? `<span class="muted">Deixe vazio se o cliente não precisa de troco.</span>` : '';
+  const ap = !t.completo || t.linhas.some(l => l.estimado) ? ' <span class="muted">(total ainda aproximado)</span>' : '';
+  if (tr < 0) return `<span class="ped-troco-erro">${ICON.alerta}${esc(D.reais(ped.trocoPara))} é menos que o total de ${esc(D.reais(t.total))}.</span>`;
+  if (tr === 0) return `<span class="ped-troco-ok">Valor certo, sem troco.${ap}</span>`;
+  return `<span class="ped-troco-ok">Levar troco de <b class="num">${esc(D.reais(tr))}</b>${ap}</span>`;
+}
+function msgPix(ped, px) {
+  const nome = (ped.cliente || '').trim().split(/\s+/)[0];
+  return `Olá${nome ? ', ' + nome : ''}! Segue o Pix da sua encomenda #${ped.num} na Dopira Defumados.\n`
+    + `Total${px.parcial ? ' aproximado' : ''}: ${D.reais(px.valor)}\n\nPix copia e cola:\n${px.codigo}\n\n`
+    + 'É só copiar o código acima e colar no app do seu banco, na opção Pix copia e cola. Obrigado!';
+}
+function htmlPix(ped) {
+  if (!Pix.pronto()) return `<div class="aviso ped-pix-sem">${ICON.alerta}<div><b>Cadastre sua chave Pix em Ajustes</b> para gerar o código de cada pedido.
+    <a class="btn btn-2 btn-sm" href="#/ajustes">Abrir Ajustes</a></div></div>`;
+  let px = null; try { px = Pix.doPedido(ped); } catch (e) { px = null; }
+  if (!px) return `<p class="ped-pix-vazio">O código Pix aparece aqui quando o pedido tiver itens com preço.</p>`;
+  const zap = UI.linkZap(ped.telefone, msgPix(ped, px));
+  return `<div class="ped-pix-cx">
+    ${px.parcial ? `<p class="aviso ped-pix-parc">${ICON.alerta}<span>O valor ainda é aproximado (faltam pesos ou preços). Gere depois de pesar.</span></p>` : ''}
+    <div class="ped-pix-qr">${Pix.qrSVG(px.codigo, 196)}</div>
+    <div class="ped-pix-info">
+      <span class="ped-pix-valor num">${esc(D.reais(px.valor))}</span>
+      <span class="ped-pix-id">Identificador <b>${esc(px.txid)}</b></span>
+    </div>
+    <div class="campo ped-pix-cod">
+      <label for="pdPixCod">Pix copia e cola</label>
+      <textarea id="pdPixCod" readonly rows="4" spellcheck="false">${esc(px.codigo)}</textarea>
+    </div>
+    <button type="button" class="btn btn-1" data-pix-copiar>${ICON.copiar}Copiar código Pix</button>
+    <a class="btn btn-zap" id="pdPixZap" ${zap ? `href="${esc(zap)}"` : 'aria-disabled="true"'} target="_blank" rel="noopener">${ICON.zap}Enviar Pix no WhatsApp</a>
+    <p class="ped-nota">O dinheiro cai direto na sua conta. Confira no app do banco e marque <b>Pago</b>.</p>
+  </div>`;
+}
+function htmlPagamento(ped, t) {
+  const pg = ped.pagamento;
+  return `<div class="ped-pg">
+    <span class="ped-rot" id="pdPgR">Pagamento</span>
+    <div class="seg ped-pg-seg" role="radiogroup" aria-labelledby="pdPgR">
+      ${FORMAS.map(f => `<label><input type="radio" name="pdPg" value="${esc(f)}" ${pg === f ? 'checked' : ''}><span>${esc(f)}</span></label>`).join('')}
+    </div>
+    <p class="dica ped-pg-nada" id="pdPgNada" ${pg ? 'hidden' : ''}>Ainda não definido. Escolha como o cliente vai pagar.</p>
+    <div class="campo ped-pg-din" id="pdPgDin" ${pg === 'Dinheiro' ? '' : 'hidden'}>
+      <label for="pdTroco">Troco para (R$)</label>
+      <div class="campo-in"><input id="pdTroco" data-troco inputmode="decimal" autocomplete="off" placeholder="opcional" value="${esc(ped.trocoPara > 0 ? D.paraInput(ped.trocoPara, 2) : '')}"><span class="suf">R$</span></div>
+      <small class="dica ped-troco" id="pdTrocoRes" aria-live="polite">${htmlTroco(ped, t)}</small>
+    </div>
+    <p class="dica ped-pg-cartao" id="pdPgCartao" ${pg === 'Cartão' ? '' : 'hidden'}>Cobrar na ${ped.modo === 'Retirada' ? 'retirada' : 'entrega'}, na maquininha.</p>
+    <div class="ped-pix" id="pdPix" ${pg === 'Pix' ? '' : 'hidden'}>${pg === 'Pix' ? htmlPix(ped) : ''}</div>
+  </div>`;
+}
+
 function msgZap(ped, t) {
   const nome = (ped.cliente || '').trim().split(/\s+/)[0];
   const itens = t.linhas.map(l => {
@@ -354,6 +458,8 @@ function msgZap(ped, t) {
   if (!t.completo || !t.linhas.length) linhas.push('Total: valor a confirmar (as peças são pesadas antes da entrega)');
   else if (est) linhas.push(`Total aproximado: ${D.reais(t.total)} (o valor final sai na pesagem)`);
   else linhas.push(`Total: ${D.reais(t.total)}`);
+  const pg = textoPagamento(ped, t, true);
+  if (pg) linhas.push(`Pagamento: ${pg}${ped.pago ? ' (já recebido, obrigado!)' : ''}`);
   const abre = ped.status === 'pronto' ? `sua encomenda #${ped.num} está pronta!`
     : ped.status === 'entregue' ? `obrigado pela encomenda #${ped.num}!`
     : `confirmando sua encomenda #${ped.num}:`;
@@ -365,6 +471,7 @@ function textoResumo(ped, t) {
     let s = `- ${D.fmtNum(l.item.qtd, 0)}x ${pr ? pr.nome : 'Produto removido'}`;
     if (pr && pr.venda === 'kg') s += l.item.peso > 0 ? ` · ${D.fmtNum(l.item.peso)} kg` : (l.estimado ? ` · ≈${D.fmtNum(l.base)} kg` : ' · sem peso');
     else if (pesoAproxItem(pr, l.item.qtd) !== null) s += ` · ≈${D.fmtPeso(pesoAproxItem(pr, l.item.qtd))} (≈${D.fmtPeso(pr.pesoAprox)} cada)`;
+    if (precoAlterado(l, ped)) s += ` · preço alterado: ${D.reais(l.preco)}${D.rotuloVenda(pr)}`;
     s += ` · ${l.valor !== null ? D.reais(l.valor) : 'a confirmar'}`;
     return s;
   });
@@ -380,7 +487,8 @@ function textoResumo(ped, t) {
     `Subtotal: ${D.reais(t.subtotal)}`,
     t.cupom.ok ? `Cupom ${t.cupom.cupom.codigo}: −${D.reais(t.desconto)}` : '',
     t.taxa ? `Taxa de entrega: ${D.reais(t.taxa)}` : '',
-    `Total${!t.completo ? ' parcial' : ''}: ${est && t.completo ? '≈ ' : ''}${D.reais(t.total)}${!t.completo ? ' (a confirmar)' : ''}`
+    `Total${!t.completo ? ' parcial' : ''}: ${est && t.completo ? '≈ ' : ''}${D.reais(t.total)}${!t.completo ? ' (a confirmar)' : ''}`,
+    `Pagamento: ${textoPagamento(ped, t) || 'a definir'}${ped.pago ? ' · pago' : ''}`
   ].filter(Boolean);
   return [cab.join('\n'), (it.length ? it : ['(sem itens)']).join('\n'), contas.join('\n')].join('\n\n');
 }
@@ -453,6 +561,7 @@ TELAS.pedido = {
               </div>
             </div>
             <div id="pdResumo">${htmlResumo(ped, t)}</div>
+            ${htmlPagamento(ped, t)}
             <div class="ped-pago">${UI.interruptor('pdPago', ped.pago, 'Pago')}</div>
           </section>
           <section class="ped-acoes" aria-label="Ações">
@@ -482,6 +591,54 @@ TELAS.pedido = {
       const zap = UI.linkZap(ped.telefone, msgZap(ped, t)), a = $('#pdZap', raiz);
       if (zap) { a.href = zap; a.removeAttribute('aria-disabled'); } else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); }
       $('#pdZapDica', raiz).hidden = !!zap;
+      atualizarPg(t);
+    };
+    /* pagamento: só troca o que mudou (o QR é refeito quando o código muda) */
+    let pixChave = null;
+    const atualizarPg = (t = D.totais(ped)) => {
+      const pg = ped.pagamento;
+      $('#pdPgNada', raiz).hidden = !!pg;
+      $('#pdPgDin', raiz).hidden = pg !== 'Dinheiro';
+      $('#pdPgCartao', raiz).hidden = pg !== 'Cartão';
+      $('#pdPgCartao', raiz).textContent = `Cobrar na ${ped.modo === 'Retirada' ? 'retirada' : 'entrega'}, na maquininha.`;
+      if (pg === 'Dinheiro') $('#pdTrocoRes', raiz).innerHTML = htmlTroco(ped, t);
+      const box = $('#pdPix', raiz);
+      box.hidden = pg !== 'Pix';
+      if (pg !== 'Pix') { if (pixChave !== null) { box.innerHTML = ''; pixChave = null; } return; }
+      let px = null; try { px = Pix.doPedido(ped); } catch (e) { px = null; }
+      const chave = !Pix.pronto() ? 'sem-config' : px ? px.codigo + (px.parcial ? '|p' : '') : 'sem-valor';
+      if (chave !== pixChave) { box.innerHTML = htmlPix(ped); pixChave = chave; }
+      const a = $('#pdPixZap', box);
+      if (a && px) {
+        const z = UI.linkZap(ped.telefone, msgPix(ped, px));
+        if (z) { a.href = z; a.removeAttribute('aria-disabled'); } else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); }
+      }
+    };
+    if (ped.pagamento === 'Pix') { const pj = Pix.doPedido(ped); pixChave = !Pix.pronto() ? 'sem-config' : pj ? pj.codigo + (pj.parcial ? '|p' : '') : 'sem-valor'; }
+    /* editor de preço do item (não redesenha a lista: o foco fica no campo) */
+    const textoPrecoItem = i => {
+      const t = D.totais(ped), l = t.linhas[i]; if (!l) return;
+      const s = $(`[data-precotxt="${i}"]`, raiz); if (s) {
+        const aberto = !$(`[data-preco-ed="${i}"]`, raiz).hidden;
+        s.innerHTML = textoPreco(l, ped, i);
+        const b = $('[data-edpreco]', s); if (b) b.setAttribute('aria-expanded', String(aberto));
+      }
+      const v = $(`[data-prvolta="${i}"]`, raiz); if (v) v.hidden = !temPrecoManual(l.item);
+    };
+    const abrirPreco = (i, abrir) => {
+      const ed = $(`[data-preco-ed="${i}"]`, raiz); if (!ed) return;
+      ed.hidden = !abrir;
+      const b = $(`[data-edpreco="${i}"]`, raiz); if (b) b.setAttribute('aria-expanded', String(abrir));
+      if (abrir) { const inp = $(`[data-preco="${i}"]`, raiz); inp.focus(); inp.select(); }
+      else if (b) b.focus();
+    };
+    const voltarPrecoCatalogo = i => {
+      const it = ped.itens[i]; if (!it) return;
+      const pr = D.produto(it.prod), cat = precoCatalogo(pr, ped);
+      if (ped.baixado && cat !== null) { it.preco = cat; it.precoAuto = true; }   // confirmado: volta ao preço congelado do catálogo
+      else { delete it.preco; delete it.precoAuto; }
+      const inp = $(`[data-preco="${i}"]`, raiz); if (inp) inp.value = cat !== null ? D.paraInput(cat, 2) : '';
+      salvarJa(ped); textoPrecoItem(i); atualizar();
     };
     const redesenharItens = (foco) => {
       $('#pdItens', raiz).innerHTML = htmlItens(ped, D.totais(ped));
@@ -511,7 +668,27 @@ TELAS.pedido = {
         const n = D.num(e.target.value);
         it.peso = n !== null && n > 0 ? D.arred(n, 3) : null;
         agendar(ped); atualizar();
+        return;
       }
+      const ipr = e.target.dataset.preco;
+      if (ipr !== undefined) {
+        const it = ped.itens[ipr]; if (!it) return;
+        const n = D.num(e.target.value);
+        if (n === null || n < 0) return;   // vazio ou inválido: espera (ao sair do campo, vazio volta ao catálogo)
+        it.preco = D.arred(n, 2); delete it.precoAuto;
+        agendar(ped); textoPrecoItem(Number(ipr)); atualizar();
+        return;
+      }
+      if (e.target.dataset.troco !== undefined) {
+        const n = D.num(e.target.value);
+        ped.trocoPara = n !== null && n > 0 ? D.arred(n, 2) : null;
+        agendar(ped); atualizar();
+      }
+    });
+    raiz.addEventListener('keydown', e => {
+      const ipr = e.target.dataset && e.target.dataset.preco;
+      if (ipr === undefined) return;
+      if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.target.dispatchEvent(new Event('change', { bubbles: true })); abrirPreco(Number(ipr), false); }
     });
     raiz.addEventListener('change', e => {
       if (e.target.name === 'pdModo') {
@@ -519,7 +696,22 @@ TELAS.pedido = {
         $('#pdTaxaCampo', raiz).hidden = ped.modo === 'Retirada';
         salvarJa(ped); atualizar(); UI.toast(`Modo: ${ped.modo}`); return;
       }
-      if (e.target.id === 'pdPago') { ped.pago = e.target.checked; salvarJa(ped); UI.toast(ped.pago ? 'Marcado como pago' : 'Marcado como não pago'); return; }
+      if (e.target.name === 'pdPg') {
+        ped.pagamento = e.target.value;
+        if (ped.pagamento !== 'Dinheiro') ped.trocoPara = null;
+        const tr = $('#pdTroco', raiz); if (tr && ped.pagamento !== 'Dinheiro') tr.value = '';
+        salvarJa(ped); atualizar(); UI.toast(`Pagamento: ${ped.pagamento}`); return;
+      }
+      if (e.target.dataset.troco !== undefined) { if (ped.trocoPara > 0) e.target.value = D.paraInput(ped.trocoPara, 2); else e.target.value = ''; salvarJa(ped); return; }
+      if (e.target.dataset.preco !== undefined) {
+        const i = Number(e.target.dataset.preco), it = ped.itens[i]; if (!it) return;
+        const n = D.num(e.target.value);
+        if (!String(e.target.value).trim()) { if (temPrecoManual(it)) voltarPrecoCatalogo(i); else { const c = precoCatalogo(D.produto(it.prod), ped); e.target.value = c !== null ? D.paraInput(c, 2) : ''; } return; }
+        if (n === null || n < 0) { e.target.value = it.preco != null ? D.paraInput(it.preco, 2) : ''; UI.toast('Preço inválido', 'erro'); return; }
+        e.target.value = D.paraInput(it.preco ?? n, 2);
+        salvarJa(ped); textoPrecoItem(i); return;
+      }
+      if (e.target.id === 'pdPago') { ped.pago = e.target.checked; salvarJa(ped); atualizar(); UI.toast(ped.pago ? 'Marcado como pago' : 'Marcado como não pago'); return; }
       if (e.target.id === 'pdCupom') { e.target.value = ped.cupom; salvarJa(ped); return; }
       if (e.target.dataset.qtd !== undefined) { const it = ped.itens[e.target.dataset.qtd]; if (it) e.target.value = D.fmtNum(it.qtd, 0); salvarJa(ped); return; }
       if (e.target.dataset.peso !== undefined) { salvarJa(ped); const it = ped.itens[e.target.dataset.peso]; if (it && it.peso > 0) e.target.value = D.paraInput(it.peso); atualizar(); return; }
@@ -542,6 +734,11 @@ TELAS.pedido = {
         ped.itens.splice(i, 1); salvarJa(ped); redesenharItens('[data-add]');
         UI.toast(ped.baixado && it.baixa > 0 ? 'Item removido e devolvido ao estoque' : 'Item removido'); return;
       }
+      if (d.edpreco !== undefined) { const i = Number(d.edpreco); const ed = $(`[data-preco-ed="${i}"]`, raiz); abrirPreco(i, !!(ed && ed.hidden)); return; }
+      if (d.prok !== undefined) { const inp = $(`[data-preco="${d.prok}"]`, raiz); if (inp) inp.dispatchEvent(new Event('change', { bubbles: true })); abrirPreco(Number(d.prok), false); return; }
+      if (d.prvolta !== undefined) { voltarPrecoCatalogo(Number(d.prvolta)); abrirPreco(Number(d.prvolta), false); UI.toast('Voltou ao preço do catálogo'); return; }
+      if (d.pixCopiar !== undefined) { const px = Pix.doPedido(ped); if (px) UI.copiar(px.codigo, px.parcial ? 'Código Pix copiado (valor aproximado)' : 'Código Pix copiado'); return; }
+      if (b.id === 'pdPixZap' && b.getAttribute('aria-disabled') === 'true') { e.preventDefault(); $('#pdTel', raiz).focus(); UI.toast('Informe o telefone do cliente', 'erro'); return; }
       if (d.add !== undefined) { escolherProduto(ped, () => redesenharItens()); return; }
       if (d.st) { mudar(ped, d.st); return; }
       if (d.cancelar !== undefined) {

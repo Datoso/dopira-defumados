@@ -1,5 +1,5 @@
 // Dopira Defumados: deixa o app funcionando sem internet depois da primeira visita.
-const VERSAO = 'dopira-v6';
+const VERSAO = 'dopira-v7';
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',

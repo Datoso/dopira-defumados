@@ -52,7 +52,8 @@ function estadoVazio() {
     promocoes: [],   // { id, nome, desconto(%), produtos:['id',...] ou [] = todos, inicio:'YYYY-MM-DD', fim:'YYYY-MM-DD', ativo }
     pedidos: [],     // ver novoPedido()
     movs: [],        // movimentos de estoque { id, t(ISO), prod, delta, motivo, pedido }
-    importados: []   // ids de encomendas do site já importadas
+    importados: [],  // ids de encomendas do site já importadas
+    pix: { chave: '', tipo: 'celular', nome: '', cidade: 'Pirapozinho' }   // recebedor do Pix (Ajustes)
   };
 }
 
@@ -75,6 +76,8 @@ function normalizar(s) {
     itens: Array.isArray(p.itens) ? p.itens.filter(ehObj) : [], status: STATUS_IDS.includes(p.status) ? p.status : 'novo',
     cliente: String(p.cliente || ''), telefone: String(p.telefone || ''), cupom: String(p.cupom || '') }));
   e.movs = e.movs.filter(ehObj);
+  e.pix = ehObj(s.pix) ? { ...v.pix, ...s.pix } : v.pix;
+  e.pedidos.forEach(p => { if (!PAGAMENTOS.includes(p.pagamento)) p.pagamento = ''; });
   e.importados = e.importados.filter(x => typeof x === 'string');
   // migração: cupom DOMINGO (5% para quem pede antes do domingo) e panceta vendida em unidade de ≈500 g
   if ((Number(e.migr) || 0) < 2) {
@@ -207,6 +210,8 @@ function ajustarEstoque(prodId, delta, motivo = 'Ajuste', pedidoId = null) {
       itens: [ { prod, qtd (peças ou un), peso (kg real, opcional, só p/ venda kg), preco (R$ unit. congelado, opcional) } ],
       cupom:'CODIGO', taxa: R$ entrega, status, baixado: bool (estoque já descontado), pago: bool
     } */
+/** Formas de pagamento aceitas ('' = ainda não definido). trocoPara: R$ (só dinheiro). */
+const PAGAMENTOS = ['', 'Pix', 'Dinheiro', 'Cartão'];
 const STATUS_IDS = ['novo','confirmado','pronto','entregue','cancelado'];
 const STATUS = [
   { id: 'novo',       nome: 'Novo' },
@@ -223,7 +228,7 @@ function novoPedido(dados = {}) {
   const p = {
     id: novoId('p'), num: estado.seq, criado: new Date().toISOString(), origem: 'manual',
     cliente: '', telefone: '', domingo: proximoDomingo(), modo: 'Entrega', endereco: '', referencia: '', obs: '',
-    itens: [], cupom: '', taxa: 0, status: 'novo', baixado: false, pago: false,
+    itens: [], cupom: '', taxa: 0, status: 'novo', baixado: false, pago: false, pagamento: '', trocoPara: null,
     ...dados
   };
   estado.pedidos.unshift(p);
@@ -355,7 +360,7 @@ function importarDoSite() {
     novoPedido({
       origem: 'site', criado: s.criado || new Date().toISOString(), cliente: s.nome || '', telefone: s.telefone || '',
       domingo: s.domingo || proximoDomingo(), modo: s.modo || 'Entrega', endereco: s.endereco || '', referencia: s.referencia || '',
-      obs: s.obs || '', cupom: s.cupom || '', itens
+      obs: s.obs || '', cupom: s.cupom || '', pagamento: PAGAMENTOS.includes(s.pagamento) ? s.pagamento : '', trocoPara: num(s.troco), itens
     });
     estado.importados.push(s.id); n++;
   });
@@ -400,6 +405,20 @@ function jaVistas() {
   try { (JSON.parse(localStorage.getItem(CHAVE_SITE) || '[]') || []).forEach(s => { if (s && s.id) ids.add(s.id); }); } catch (e) {}
   return [...ids];
 }
+/** O que o site pode mostrar ao público: preços, descontos, promoções, cupons ativos e a chave Pix.
+    (Nada de estoque, pedidos ou clientes.) Vira o arquivo precos.json publicado junto do site. */
+function dadosPublicos() {
+  const hoje = hojeISO();
+  return {
+    gerado: new Date().toISOString(),
+    produtos: estado.produtos.map(p => ({ id: p.id, nome: p.nome, venda: p.venda, preco: p.preco, desconto: Number(p.desconto) || 0,
+      pesoMedio: p.pesoMedio, pesoAprox: p.pesoAprox, ativo: p.ativo })),
+    promocoes: estado.promocoes.filter(p => p.ativo && (!p.fim || p.fim >= hoje)).map(p => ({ nome: p.nome, desconto: p.desconto, produtos: p.produtos, inicio: p.inicio, fim: p.fim, ativo: true })),
+    cupons: estado.cupons.filter(c => c.ativo).map(c => ({ codigo: c.codigo, tipo: c.tipo, valor: c.valor, minimo: c.minimo, validade: c.validade,
+      primeiraCompra: c.primeiraCompra, antecedencia: c.antecedencia || 0, ativo: true, descricao: c.descricao })),
+    pix: estado.pix && estado.pix.chave ? { chave: estado.pix.chave, nome: estado.pix.nome, cidade: estado.pix.cidade } : null
+  };
+}
 function apagarTudo() { const v = jaVistas(); estado = estadoVazio(); estado.importados = v; salvar(); }
 function substituirEstado(novo) {
   if (!ehObj(novo) || !Array.isArray(novo.produtos) || !novo.produtos.some(p => ehObj(p) && p.id)) throw new Error('Arquivo de backup inválido');
@@ -411,11 +430,11 @@ function substituirEstado(novo) {
 /* ---------- exporta ---------- */
 window.D = {
   get estado() { return estado; },
-  CHAVE, CHAVE_SITE, STATUS, nomeStatus,
+  CHAVE, CHAVE_SITE, STATUS, nomeStatus, PAGAMENTOS,
   salvar, carregar, aoMudar, novoId, arred, num, reais, fmtNum, qtd, paraInput,
   hojeISO, isoDe, dataDeISO, proximoDomingo, fmtData, fmtDataHora, DIAS, MESES,
   produto, produtoBase, fmtPeso, rotuloVenda, nomeVenda, promocoesDo, descontoDo, precoEfetivo, situacaoEstoque, pecasEstimadas,
   ajustarEstoque, novoPedido, pedido, diaDoPedido, precoNoPedido, get avisoCarga() { return avisoCarga; }, normalizar, quantidadeEstoque, validarCupom, totais, mudarStatus, soDigitos,
-  importarDoSite, carregarExemplo, apagarTudo, substituirEstado
+  importarDoSite, dadosPublicos, carregarExemplo, apagarTudo, substituirEstado
 };
 })();
