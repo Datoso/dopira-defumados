@@ -1244,7 +1244,7 @@ let pedidoInstalar = null;
 const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 if (instalado()) document.body.classList.add('instalado');
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; });
-window.addEventListener('appinstalled', () => { pedidoInstalar = null; document.body.classList.add('instalado'); fecharInst(); });
+window.addEventListener('appinstalled', () => { pedidoInstalar = null; });
 const instVeu = $('#instVeu');
 let instFoco = null;
 function abrirInst(){
