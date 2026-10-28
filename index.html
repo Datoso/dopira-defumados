@@ -6,7 +6,6 @@
 <title>Dopira Defumados · Defumados artesanais em Pirapozinho</title>
 <meta name="description" content="Brisket, beef ribs, panceta, costelinha e linguiça calabresa defumados em lenha de laranjeira, sob encomenda. Entrega aos domingos em Pirapozinho-SP.">
 <meta name="theme-color" content="#1E1814">
-<meta name="robots" content="noindex, nofollow">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -76,6 +75,18 @@ button{cursor:pointer;border:0;background:none}
 .link-seta:hover{color:var(--casca)}
 
 /* ---------- faixa + topo ---------- */
+.btn-instalar{margin-left:10px;font:inherit;font-weight:800;background:var(--carvao);color:#F8C505;border:0;border-radius:999px;padding:4px 14px;min-height:28px;cursor:pointer}
+.btn-instalar:hover{background:#000}
+body.instalado [data-instalar]{display:none!important}
+.menu-cel .btn-2{border:2px solid var(--papel);color:var(--papel);background:transparent}
+.inst-veu{position:fixed;inset:0;z-index:300;background:rgba(20,15,12,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+.inst-veu[hidden]{display:none}
+.inst-cx{position:relative;background:var(--papel);color:var(--carvao);border-radius:var(--r-m,16px);padding:28px 24px 22px;max-width:440px;width:100%;max-height:88vh;overflow:auto}
+.inst-cx h2{font-family:var(--display);font-weight:800;font-size:30px;text-transform:uppercase;margin-bottom:8px}
+.inst-cx ol{margin:12px 0 16px 22px;display:flex;flex-direction:column;gap:8px}
+.inst-cx .x{position:absolute;top:8px;right:12px;font-size:32px;background:none;border:0;cursor:pointer;color:inherit;min-width:44px;min-height:44px}
+.inst-cx .btn{width:100%}
+.inst-nota{font-size:14px;margin-top:10px;min-height:1.2em}
 .faixa{background:var(--laranjeira);color:var(--carvao);font-size:14px;text-align:center;padding:6px 16px;font-weight:600}
 .topo{position:sticky;top:0;z-index:50;background:rgba(30,24,20,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--papel);border-bottom:1px solid rgba(255,255,255,.08);view-transition-name:topo}
 .topo .wrap{display:flex;align-items:center;gap:20px;height:var(--topo)}
@@ -502,7 +513,7 @@ main:focus{outline:none}
 </head>
 <body>
 <a class="pular" href="#/" onclick="event.preventDefault();document.getElementById('conteudo').focus()">Pular para o conteúdo</a>
-<div class="faixa" role="note">Protótipo de teste · fotos e preços ainda a definir</div>
+<div class="faixa" role="note">Protótipo de teste · fotos e preços ainda a definir <button type="button" class="btn-instalar" data-instalar>⬇ Instalar app</button></div>
 
 <header class="topo">
   <div class="wrap">
@@ -537,6 +548,7 @@ main:focus{outline:none}
   </nav>
   <div class="rodape-menu">
     <a class="btn btn-1" href="#/encomendar">Fazer encomenda</a>
+    <button type="button" class="btn btn-2" data-instalar>⬇ Instalar app</button>
     <span>Pedidos até sábado, 12h · Entregas no domingo</span>
   </div>
 </div>
@@ -555,6 +567,18 @@ main:focus{outline:none}
     <div class="fim"><span>© Dopira Defumados · Produtos artesanais e defumados</span><span>Feito sob encomenda, defumado devagar.</span></div>
   </div>
 </footer>
+
+<!-- instalar app -->
+<div class="inst-veu" id="instVeu" hidden>
+  <div class="inst-cx" role="dialog" aria-modal="true" aria-labelledby="t-inst">
+    <button class="x" id="instFechar" aria-label="Fechar">×</button>
+    <h2 id="t-inst">Instalar o app</h2>
+    <p id="instMsg"></p>
+    <ol id="instPassos"></ol>
+    <div class="inst-acoes"><button type="button" class="btn btn-1" id="instCopiar">Copiar o link do site</button></div>
+    <p class="inst-nota" id="instNota" aria-live="polite"></p>
+  </div>
+</div>
 
 <!-- gaveta -->
 <div class="veu" id="veu"></div>
@@ -1215,6 +1239,40 @@ function navegar(primeira){
 window.addEventListener('hashchange', () => navegar(false));
 navegar(true);
 renderGaveta();
+// botão "Instalar app"
+let pedidoInstalar = null;
+const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+if (instalado()) document.body.classList.add('instalado');
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; });
+window.addEventListener('appinstalled', () => { pedidoInstalar = null; document.body.classList.add('instalado'); fecharInst(); });
+const instVeu = $('#instVeu');
+let instFoco = null;
+function abrirInst(){
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const dentro = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)/i.test(navigator.userAgent);
+  let msg, passos;
+  if (ios){ msg = 'No iPhone a instalação é feita pelo Safari:'; passos = ['Abra este site no <b>Safari</b>','Toque no botão <b>Compartilhar</b> (quadrado com seta)','Escolha <b>Adicionar à Tela de Início</b>']; }
+  else if (dentro){ msg = 'Você está abrindo dentro de outro app (WhatsApp, Instagram...), que não instala.'; passos = ['Toque em <b>Copiar o link do site</b> aqui embaixo','Abra o <b>Chrome</b> e cole na barra de endereço','No Chrome, toque nos <b>⋮</b> e em <b>Instalar app</b> (ou <b>Adicionar à tela inicial</b>)']; }
+  else { msg = 'Se o aviso automático não aparecer, faça assim no Chrome:'; passos = ['Toque nos <b>⋮</b> (canto de cima)','Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>','Confirme em <b>Instalar</b>']; }
+  $('#instMsg').textContent = msg;
+  $('#instPassos').innerHTML = passos.map(t => '<li>' + t + '</li>').join('');
+  $('#instNota').textContent = '';
+  instFoco = document.activeElement; instVeu.hidden = false; $('#instFechar').focus();
+}
+function fecharInst(){ instVeu.hidden = true; if (instFoco && instFoco.focus) instFoco.focus(); }
+document.addEventListener('click', async e => {
+  if (!e.target.closest('[data-instalar]')) return;
+  if (pedidoInstalar){ const pi = pedidoInstalar; pedidoInstalar = null; pi.prompt(); try { await pi.userChoice; } catch(_){} }
+  else abrirInst();
+});
+$('#instFechar').addEventListener('click', fecharInst);
+instVeu.addEventListener('click', e => { if (e.target === instVeu) fecharInst(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !instVeu.hidden) fecharInst(); });
+$('#instCopiar').addEventListener('click', async () => {
+  const url = location.href.split('#')[0];
+  try { await navigator.clipboard.writeText(url); $('#instNota').textContent = 'Link copiado. Cole no Chrome.'; }
+  catch(_){ $('#instNota').textContent = 'Copie manualmente: ' + url; }
+});
 // app instalável (PWA): só funciona quando o site estiver num endereço https de verdade
 if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window){
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
