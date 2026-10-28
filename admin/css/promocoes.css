@@ -150,3 +150,17 @@
 .pm-previa-vazia{font-size:14px}
 .pm-regra{margin-top:8px;font-size:13px}
 .pm-msg-erro[hidden]{display:none}
+
+/* cupom DOMINGO (padrão para quem pede antes): só o selo, sem pesar o visual */
+.tk-selo-dom{background:#FBE3CF;color:var(--casca)}
+/* antecedência: 4 opções em grade 2×2 */
+.pm-ant{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pm-ant label{position:relative}
+.pm-ant input{position:absolute;opacity:0;inset:0}
+.pm-ant span{display:flex;flex-direction:column;justify-content:center;min-height:52px;padding:6px 12px;border:1.5px solid #D6D1C8;border-radius:var(--r-s);background:#fff;cursor:pointer;line-height:1.2}
+.pm-ant b{font-size:15px}
+.pm-ant small{font-size:12px;color:var(--tinta-2)}
+.pm-ant input:checked + span{background:var(--carvao);border-color:var(--carvao);color:var(--papel)}
+.pm-ant input:checked + span small{color:var(--fumaca)}
+.pm-ant input:focus-visible + span{outline:3px solid var(--laranjeira);outline-offset:2px}
+.pm-ant-dica{margin-top:6px;font-size:13px;color:var(--tinta-2);line-height:1.4}

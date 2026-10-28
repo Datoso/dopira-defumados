@@ -27,7 +27,7 @@ function ddmm(iso) {
   return `${d}/${m}${Number(y) !== new Date().getFullYear() ? '/' + y : ''}`;
 }
 const n2 = n => D.fmtNum(n, 2);
-const unid = prod => prod.venda === 'un' ? '/un' : '/kg';
+const unid = prod => D.rotuloVenda(prod);
 const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 
 /* ---------- cupons ---------- */
@@ -37,15 +37,31 @@ function situacaoCupom(c) {
   if (c.validade && c.validade < hoje()) return { id: 'venc', nome: 'Vencido', cls: 'tag-zerado' };
   return { id: 'on', nome: 'Ativo', cls: 'tag-ok' };
 }
+/* antecedência: dias entre o pedido e o domingo da entrega (0 = qualquer dia) */
+const antDe = c => Math.max(0, Math.round(Number(c && c.antecedencia) || 0));
+const ULTIMO_DIA = ['', 'sábado', 'sexta', 'quinta', 'quarta', 'terça', 'segunda'];
+const ateDia = n => ULTIMO_DIA[n] || '';
+const OPCOES_ANT = [
+  { v: 0, t: 'Qualquer dia', s: 'até no próprio domingo' },
+  { v: 1, t: 'Antes do domingo', s: 'até sábado' },
+  { v: 2, t: '2 dias antes', s: 'até sexta' },
+  { v: 3, t: '3 dias antes', s: 'até quinta' }
+];
+function regraAnt(n) {
+  if (!n) return '';
+  return n === 1 ? 'Só para pedidos feitos antes do domingo' : `Só para pedidos feitos com ${n} dias de antecedência${ateDia(n) ? ` (até ${ateDia(n)})` : ''}`;
+}
 function descricaoAuto(c) {
-  const v = Number(c.valor) || 0;
-  let t = c.tipo === '%' ? `${n2(v)}% de desconto no pedido` : `${D.reais(v)} de desconto no pedido`;
+  const v = Number(c.valor) || 0, n = antDe(c);
+  let t = c.tipo === '%' ? `${n2(v)}% de desconto` : `${D.reais(v)} de desconto`;
+  t += n === 1 ? ' para quem pede antes do domingo' : n > 1 ? ` para quem pede com ${n} dias de antecedência` : ' no pedido';
   if (c.minimo > 0) t += ` acima de ${D.reais(c.minimo)}`;
   return t;
 }
 function regrasCupom(c) {
   const r = [];
   if (c.primeiraCompra) r.push('Só na primeira compra');
+  if (antDe(c)) r.push(regraAnt(antDe(c)));
   if (c.minimo > 0) r.push(`Pedido mínimo ${D.reais(c.minimo)}`);
   if (c.validade) r.push(c.validade < hoje() ? `Venceu em ${ddmm(c.validade)}` : `Válido até ${ddmm(c.validade)}`);
   else r.push('Sem prazo de validade');
@@ -55,15 +71,19 @@ function regrasCupom(c) {
 }
 function mensagemDivulgar(c) {
   const valor = c.tipo === '%' ? `${n2(c.valor)}%` : D.reais(Number(c.valor) || 0);
-  let t = `Use o cupom ${c.codigo} ${c.primeiraCompra ? 'na sua primeira encomenda' : 'na sua encomenda'} da Dopira Defumados e ganhe ${valor} de desconto`;
+  const n = antDe(c), onde = c.primeiraCompra ? 'na sua primeira encomenda' : 'na sua encomenda';
+  let t = n === 1 ? `Peça antes do domingo e use o cupom ${c.codigo}: ${valor} de desconto ${onde} da Dopira Defumados`
+    : n > 1 ? `Peça com ${n} dias de antecedência${ateDia(n) ? ` (até ${ateDia(n)})` : ''} e use o cupom ${c.codigo}: ${valor} de desconto ${onde} da Dopira Defumados`
+    : `Use o cupom ${c.codigo} ${onde} da Dopira Defumados e ganhe ${valor} de desconto`;
   if (c.minimo > 0) t += ` em pedidos a partir de ${D.reais(c.minimo)}`;
   if (c.validade) t += ` (válido até ${ddmm(c.validade)})`;
   return `${t}. Peça pelo site: ${UI.URL_SITE}`;
 }
 const ehPadrao = c => c.id === 'c-primeira' || c.codigo.toUpperCase() === 'PRIMEIRACOMPRA';
+const ehDomingo = c => c.id === 'c-domingo' || c.codigo.toUpperCase() === 'DOMINGO';
 const cuponsOrdenados = () => {
   const l = D.estado.cupons.slice();
-  return l.filter(ehPadrao).concat(l.filter(c => !ehPadrao(c)));
+  return l.filter(ehPadrao).concat(l.filter(c => !ehPadrao(c) && ehDomingo(c)), l.filter(c => !ehPadrao(c) && !ehDomingo(c)));
 };
 
 function htmlValorStub(c) {
@@ -77,12 +97,12 @@ function htmlValorStub(c) {
 }
 
 function htmlCupom(c) {
-  const sit = situacaoCupom(c), dest = ehPadrao(c);
-  return `<article class="tk tk-${sit.id}${dest ? ' tk-dest' : ''}" aria-label="Cupom ${esc(c.codigo)}">
+  const sit = situacaoCupom(c), dest = ehPadrao(c), dom = !dest && ehDomingo(c);
+  return `<article class="tk tk-${sit.id}${dest ? ' tk-dest' : ''}${dom ? ' tk-dom' : ''}" aria-label="Cupom ${esc(c.codigo)}">
     <div class="tk-topo">
       <div class="tk-valor" aria-label="${esc(textoValor(c))} de desconto">${htmlValorStub(c)}</div>
       <div class="tk-corpo">
-        <div class="tk-l1">${dest ? '<span class="tk-selo">Cliente novo · padrão</span>' : ''}<span class="pill ${sit.cls}">${sit.nome}</span></div>
+        <div class="tk-l1">${dest ? '<span class="tk-selo">Cliente novo · padrão</span>' : dom ? '<span class="tk-selo tk-selo-dom">Pedido antecipado · padrão</span>' : ''}<span class="pill ${sit.cls}">${sit.nome}</span></div>
         <h4 class="tk-cod">${esc(c.codigo)}</h4>
         <p class="tk-desc">${esc(c.descricao || descricaoAuto(c))}</p>
         <ul class="tk-regras">${regrasCupom(c).map(r => `<li>${esc(r)}</li>`).join('')}</ul>
@@ -185,7 +205,7 @@ function render(params) {
         <p class="pm-explica">${IC.cupom}<span>O cliente digita o cupom no site ao encomendar. O desconto é calculado no pedido, aqui no app.</span></p>
         ${cupons.length ? `<div class="tk-lista">${cupons.map(htmlCupom).join('')}</div>`
           : UI.vazio('Nenhum cupom', 'Crie um cupom para divulgar no WhatsApp e nas redes.', `<button type="button" class="btn btn-1" data-acao="novo-cupom">${ICON.mais}Criar cupom</button>`)}
-        <p class="pm-dica">${IC.info}<span>O site reconhece os cupons criados aqui quando é aberto neste mesmo aparelho e navegador. Em outros celulares, por enquanto o site aceita só o <b>PRIMEIRACOMPRA</b>.</span></p>
+        <p class="pm-dica">${IC.info}<span>O site reconhece os cupons criados aqui quando é aberto neste mesmo aparelho e navegador. Em outros celulares, por enquanto o site aceita só os padrões <b>PRIMEIRACOMPRA</b> e <b>DOMINGO</b>.</span></p>
       </section>
 
       <section class="pm-sec" data-sec="promocoes" aria-labelledby="pmTitPro">
@@ -248,7 +268,8 @@ async function divulgar(c) {
 }
 
 async function excluirCupom(c) {
-  const extra = ehPadrao(c) ? ' Ele é o cupom padrão de primeira compra: em outros aparelhos o site continua aceitando PRIMEIRACOMPRA.' : '';
+  const extra = ehPadrao(c) ? ' Ele é o cupom padrão de primeira compra: em outros aparelhos o site continua aceitando PRIMEIRACOMPRA.'
+    : ehDomingo(c) ? ' Ele é o cupom padrão para quem pede antes do domingo: em outros aparelhos o site continua aceitando DOMINGO.' : '';
   const ok = await UI.confirmar(`Excluir o cupom ${c.codigo}?${extra} Pedidos antigos com esse código deixam de ter o desconto calculado.`, { sim: 'Excluir', perigo: true });
   if (!ok) return;
   D.estado.cupons = D.estado.cupons.filter(x => x !== c);
@@ -275,7 +296,9 @@ const limparCodigo = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '
 
 function dialogoCupom(c) {
   const novo = !c;
-  const v = c || { codigo: '', tipo: '%', valor: '', minimo: 0, validade: '', primeiraCompra: false, ativo: true, descricao: '' };
+  const v = c || { codigo: '', tipo: '%', valor: '', minimo: 0, validade: '', primeiraCompra: false, ativo: true, descricao: '', antecedencia: 0 };
+  const ant = antDe(v);
+  const opcoes = OPCOES_ANT.some(o => o.v === ant) ? OPCOES_ANT : OPCOES_ANT.concat({ v: ant, t: `${ant} dias antes`, s: ateDia(ant) ? `até ${ateDia(ant)}` : '' });
   const html = `<form class="form pm-form" id="fCupom">
     ${UI.campo({ id: 'cpCodigo', rotulo: 'Código do cupom', valor: v.codigo, attrs: 'required maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ex.: DOMINGO10"', dica: 'Letras e números, sem espaços. É o que o cliente digita.' })}
     <div class="campo"><span class="pm-rot" id="cpTipoRot">Tipo de desconto</span>
@@ -288,6 +311,12 @@ function dialogoCupom(c) {
       ${UI.campo({ id: 'cpValor', rotulo: 'Desconto', valor: D.paraInput(v.valor === '' ? null : Number(v.valor), 2), attrs: 'required inputmode="decimal" autocomplete="off"', sufixo: v.tipo === 'R$' ? 'R$' : '%' })}
       ${UI.campo({ id: 'cpMinimo', rotulo: 'Pedido mínimo', valor: v.minimo > 0 ? D.paraInput(v.minimo, 2) : '', attrs: 'inputmode="decimal" autocomplete="off" placeholder="Opcional"', sufixo: 'R$' })}
     </div>
+    <fieldset class="pm-fs"><legend class="pm-rot">Quando o cliente precisa pedir</legend>
+      <div class="pm-ant" role="radiogroup" aria-label="Antecedência do pedido">
+        ${opcoes.map(o => `<label><input type="radio" name="cpAnt" value="${o.v}" ${o.v === ant ? 'checked' : ''}><span><b>${esc(o.t)}</b>${o.s ? `<small>${esc(o.s)}</small>` : ''}</span></label>`).join('')}
+      </div>
+      <p class="dica pm-ant-dica" id="cpAntDica"></p>
+    </fieldset>
     ${UI.campo({ id: 'cpValidade', rotulo: 'Válido até', tipo: 'date', valor: v.validade || '', dica: 'Deixe vazio para não ter prazo.' })}
     <div class="pm-sws">
       ${UI.interruptor('cpPrimeira', v.primeiraCompra, 'Só na primeira compra do cliente')}
@@ -303,7 +332,8 @@ function dialogoCupom(c) {
       codigo: limparCodigo($('#cpCodigo', d).value), tipo,
       valor: D.num($('#cpValor', d).value), minimo: D.num($('#cpMinimo', d).value),
       validade: $('#cpValidade', d).value || '', primeiraCompra: $('#cpPrimeira', d).checked,
-      ativo: $('#cpAtivo', d).checked, descricao: $('#cpDesc', d).value.trim()
+      ativo: $('#cpAtivo', d).checked, descricao: $('#cpDesc', d).value.trim(),
+      antecedencia: Number(($('input[name="cpAnt"]:checked', d) || {}).value) || 0
     };
   };
   const validar = d => {
@@ -317,6 +347,7 @@ function dialogoCupom(c) {
     const minTxt = $('#cpMinimo', d).value.trim();
     marcarErro($('#cpMinimo', d), minTxt && (x.minimo === null || x.minimo < 0) ? 'Valor inválido.' : '');
     $('#cpDesc', d).placeholder = x.valor > 0 ? descricaoAuto({ ...x, minimo: x.minimo || 0 }) : 'Ex.: 20% de desconto no pedido';
+    $('#cpAntDica', d).textContent = x.antecedencia ? (x.antecedencia === 1 ? 'Pedido feito no próprio domingo não ganha o desconto.' : `Pedido feito ${ateDia(x.antecedencia) ? `depois de ${ateDia(x.antecedencia)}` : `com menos de ${x.antecedencia} dias para o domingo`} não ganha o desconto.`) : 'Vale para pedidos feitos em qualquer dia.';
     return x;
   };
 
@@ -344,7 +375,7 @@ function dialogoCupom(c) {
     if (r !== 'ok' || !dados) return;
     const obj = {
       codigo: dados.codigo, tipo: dados.tipo, valor: D.arred(dados.valor), minimo: dados.minimo > 0 ? D.arred(dados.minimo) : 0,
-      validade: dados.validade, primeiraCompra: dados.primeiraCompra, ativo: dados.ativo
+      validade: dados.validade, primeiraCompra: dados.primeiraCompra, ativo: dados.ativo, antecedencia: dados.antecedencia
     };
     obj.descricao = dados.descricao || descricaoAuto(obj);
     if (novo) D.estado.cupons.push({ id: D.novoId('c'), usos: 0, ...obj });

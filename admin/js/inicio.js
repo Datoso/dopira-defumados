@@ -50,6 +50,8 @@ function producao(dom) {
       else if (prod.pesoMedio > 0) { kg = q * prod.pesoMedio; est = true; }
     }
     l.qtd += q; l.pedidos.add(ped.id);
+    // venda por unidade com peso aproximado (ex.: panceta ≈500 g): entra no total de kg como aproximado
+    if (prod.venda === 'un' && prod.pesoAprox > 0) { l.kg += q * prod.pesoAprox; l.estimado = true; }
     if (prod.venda === 'kg') { if (kg === null) l.kgOk = false; else l.kg += kg; if (est) l.estimado = true; }
     if (!ped.baixado) {
       l.pendQtd += q;
@@ -65,13 +67,15 @@ function htmlProducao(dom) {
   if (!linhas.length) {
     return `<div class="card ini-prod-vazio">${ICON.fogo}<div><b>Nenhum pedido para domingo ainda</b><span>Quando entrarem encomendas para ${esc(D.fmtData(dom))}, aqui aparece quanto defumar de cada produto.</span></div></div>`;
   }
-  const kgTotal = linhas.reduce((s, l) => s + (l.prod.venda === 'kg' && l.kgOk ? l.kg : 0), 0);
+  const temKg = l => (l.prod.venda === 'kg' && l.kgOk) || (l.prod.venda === 'un' && l.prod.pesoAprox > 0);
+  const kgTotal = linhas.reduce((s, l) => s + (temKg(l) ? l.kg : 0), 0);
   const algumEst = linhas.some(l => l.estimado);
   const faltando = linhas.filter(l => falta(l) > 0).length;
   const itens = linhas.map(l => {
     const p = l.prod, kg = p.venda === 'kg';
     const qt = kg
       ? `${plural(l.qtd, 'peça', 'peças')} · ${l.kgOk ? `${l.estimado ? '≈ ' : ''}${D.fmtNum(D.arred(l.kg, 2), 2)} kg` : 'peso a definir'}`
+      : p.pesoAprox > 0 ? `${D.fmtNum(l.qtd, 0)} un · ≈ ${D.fmtPeso(D.arred(l.kg, 3))}`
       : plural(l.qtd, 'unidade', 'unidades');
     const est = Math.max(0, p.estoque || 0);
     const f = falta(l);
@@ -92,7 +96,7 @@ function htmlProducao(dom) {
       ${faltando ? `<span class="pill tag-zerado">${faltando === 1 ? '1 item em falta' : `${faltando} itens em falta`}</span>` : '<span class="pill tag-ok">Estoque cobre</span>'}
     </div>
     <ul class="ini-prod-lista">${itens}</ul>
-    <p class="ini-nota">${algumEst ? '≈ = estimado pelo peso médio. ' : ''}Pedidos já confirmados saíram do estoque; a falta considera só os que ainda não deram baixa.</p>
+    <p class="ini-nota">${algumEst ? '≈ = estimado pelo peso médio (ou peso aproximado da unidade). ' : ''}Pedidos já confirmados saíram do estoque; a falta considera só os que ainda não deram baixa.</p>
   </div>`;
 }
 function falta(l) {

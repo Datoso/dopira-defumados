@@ -35,11 +35,11 @@ h1,h2,h3{font-family:var(--display);font-weight:800;line-height:1.05;text-transf
 
 /* ---------- faixa de exemplo ---------- */
 .faixa-exemplo{background:var(--amarelo);color:var(--carvao);text-align:center;font-size:14px;font-weight:600;padding:6px 12px}
-.faixa-exemplo a{font-weight:800}
+.faixa-exemplo a{font-weight:800;display:inline-block;padding:6px 0}
 
 /* ---------- topo ---------- */
 .topo{position:sticky;top:0;z-index:50;height:var(--topo);background:var(--carvao);color:var(--papel);display:flex;align-items:center;gap:8px;padding:0 12px;padding-top:env(safe-area-inset-top);box-sizing:content-box}
-.marca{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
+.marca{display:flex;align-items:center;gap:10px;min-height:44px;min-width:44px;text-decoration:none;font-family:var(--display);font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
 .marca img{width:36px;height:36px;border-radius:50%;box-shadow:0 0 0 2px rgba(248,197,5,.35)}
 .marca small{font-weight:600;color:var(--amarelo);font-size:.8em}
 .titulo-topo{display:none;font-size:22px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -78,11 +78,11 @@ main{display:block;padding:20px 16px calc(var(--baixo) + 32px + env(safe-area-in
 .btn-2:hover{background:rgba(30,24,20,.06)}
 .btn-3{background:var(--carvao);color:var(--papel)}
 .btn-3:hover{background:#000}
-.btn-zap{background:#1F9D55;color:#fff}
+.btn-zap{background:#167A43;color:#fff}
 .btn-perigo{background:var(--erro);color:#fff}
 .btn-sm{min-height:44px;padding:6px 16px;font-size:16px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn-link{background:none;border:0;color:var(--laranja-esc);font-weight:700;text-decoration:underline;padding:10px 4px;min-height:44px}
+.btn-link{background:none;border:0;color:#A94A0E;font-weight:700;text-decoration:underline;padding:10px 4px;min-height:44px}
 
 /* ---------- cartões e linhas ---------- */
 .card{background:var(--branco);border-radius:var(--r-m);box-shadow:var(--sombra);padding:16px}
@@ -106,7 +106,7 @@ a.linha:hover{box-shadow:0 2px 4px rgba(30,24,20,.08),0 10px 28px rgba(30,24,20,
 /* ---------- chips de filtro ---------- */
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;margin:0 -2px 8px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--cinza-2);background:var(--branco);font-size:14px;font-weight:700;color:var(--tinta-2)}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--cinza-2);background:var(--branco);font-size:14px;font-weight:700;color:var(--tinta-2)}
 .chip[aria-pressed="true"]{background:var(--carvao);border-color:var(--carvao);color:var(--papel)}
 .chip .n{font-family:var(--display);font-size:15px;opacity:.75}
 

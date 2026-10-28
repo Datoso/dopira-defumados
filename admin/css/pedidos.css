@@ -77,6 +77,9 @@
 .ped-aviso-dom{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--aviso);font-weight:600;margin-top:-6px}
 .ped-aviso-dom[hidden]{display:none}
 .ped-aviso-dom .ic{width:18px;height:18px}
+.ped-ajustes .campo[hidden]{display:none}
+#pdStatus:focus{outline:none}
+#pdStatus:focus-visible > .ped-status{outline:3px solid var(--laranjeira);outline-offset:2px}
 .ped-salvo{font-size:13px;color:var(--tinta-2);margin-top:12px}
 
 /* itens */
@@ -103,7 +106,7 @@
 .ped-item-aviso .ic{width:18px;height:18px}
 .ped-sem-itens{padding:18px;border:1.5px dashed var(--cinza-2);border-radius:var(--r-s);text-align:center;color:var(--tinta-2)}
 .ped-add{width:100%;margin-top:14px}
-.ped-falta{color:var(--laranja-esc);font-weight:700}
+.ped-falta{color:#A94A0E;font-weight:700}
 
 /* resumo */
 .ped-ajustes{gap:12px;margin-bottom:14px}
@@ -122,11 +125,13 @@
 .ped-total-g dd{font-size:36px;font-weight:800;line-height:1}
 .ped-faltas{margin-top:12px;font-size:14px}
 .ped-faltas ul{margin:6px 0 0 18px}
-.ped-faltas a{color:var(--laranja-esc);font-weight:700}
+.ped-faltas a{color:#A94A0E;font-weight:700}
 .ped-pago{margin-top:12px;padding-top:6px;border-top:1px solid var(--cinza)}
 
 .ped-acoes{display:flex;flex-direction:column;gap:10px}
 .ped-acoes .btn{width:100%}
+.ped-acoes .btn-zap{background:#167A43;color:#fff}
+.ped-acoes .btn-zap:hover{background:#11663A}
 .btn-zap[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
 .ped-zap-dica{text-align:center;margin-top:-4px}
 .ped-zap-dica[hidden]{display:none}
@@ -141,7 +146,7 @@
 .ped-op-meio > span{font-size:14px;color:var(--tinta-2);display:flex;flex-wrap:wrap;align-items:center;gap:4px}
 .ped-op-meio .num{color:var(--tinta);font-size:16px}
 .ped-op-meio .pill{min-height:20px;font-size:11px}
-.ped-op-fim{display:flex;align-items:center;gap:8px;color:var(--laranja-esc);flex:none}
+.ped-op-fim{display:flex;align-items:center;gap:8px;color:#A94A0E;flex:none}
 .ped-op-fim small{font-size:12px;font-weight:700;color:var(--tinta-2)}
 .ped-avisos{margin:6px 0 8px 18px}
 
@@ -169,3 +174,7 @@
   .ped-status-canc{display:flex}
   .ped-lado{position:sticky;top:calc(var(--topo) + 16px);max-height:calc(100dvh - var(--topo) - 32px);overflow:auto;padding:2px;margin:-2px;scrollbar-width:thin}
 }
+
+/* venda por unidade com peso aproximado (ex.: panceta ≈500 g) */
+.ped-aprox{display:flex;flex-direction:column;gap:6px;align-self:flex-start}
+.ped-aprox-v{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:700;color:var(--tinta-2)}

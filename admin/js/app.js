@@ -63,6 +63,7 @@ function desenhar(animar) {
   rotaAtual = r;
 }
 function navegar() {
+  const d = $('#dlg'); if (d && d.open) { const x = $('[data-dlg-fechar]', d); if (x) x.click(); else d.close(); }   // não deixa diálogo agindo sobre outra tela
   const anterior = rotaAtual;
   desenhar(true);
   if (!anterior || anterior.nome !== rotaAtual.nome || anterior.params.join('/') !== rotaAtual.params.join('/')) {
@@ -102,6 +103,7 @@ function iniciar() {
   if (!location.hash) history.replaceState(null, '', '#/inicio');
   window.addEventListener('hashchange', navegar);
   desenhar(false);
+  if (D.avisoCarga) setTimeout(() => UI.toast(D.avisoCarga, 'erro'), 400);
   // PWA: só em https
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

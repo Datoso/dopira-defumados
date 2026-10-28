@@ -3,7 +3,9 @@
    ===================================================================== */
 
 /* ---------- lista ---------- */
-.cat-stats{margin-bottom:18px}
+.cat-stats{margin-bottom:18px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.cat-stats .stat{min-width:0}
+.cat-stats .rot,.cat-stats .sub{overflow-wrap:anywhere}
 .cat-stat{border:0;text-align:left;font:inherit;cursor:pointer;transition:transform .15s var(--ease),box-shadow .15s}
 .cat-stat:hover{box-shadow:0 2px 4px rgba(30,24,20,.08),0 10px 28px rgba(30,24,20,.12)}
 .cat-stat:active{transform:scale(.98)}
@@ -27,6 +29,8 @@
 .cat-preco{display:inline-flex;align-items:baseline;gap:6px;flex-wrap:wrap}
 .cat-preco b{font-size:22px;color:var(--tinta)}
 .cat-preco small{font-size:14px;color:var(--tinta-2);margin-left:-3px}
+.cat-pr-ef{display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap}
+.cat-preco small{white-space:nowrap}
 .cat-preco s{color:var(--tinta-2);font-size:14px}
 .cat-preco.g b{font-size:28px}
 .cat-desc{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tinta-2);min-width:0}
@@ -47,6 +51,14 @@
 .cat-card.inativo{box-shadow:0 0 0 1.5px var(--cinza-2)}
 
 .cat-rot{font-size:14px;font-weight:700}
+
+/* forma de venda (3 opções) e peso aproximado da unidade */
+.seg.cat-seg-venda{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;border-radius:var(--r-m)}
+.cat-seg-venda label{display:flex;min-width:0}
+.cat-seg-venda span{flex:1;justify-content:center;text-align:center;min-height:44px;padding:4px 8px;line-height:1.15;border-radius:calc(var(--r-m) - 4px)}
+.cat-pesoap[hidden]{display:none}
+.cat-tag-venda{align-self:flex-start;display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;background:#EEF0E8;color:var(--folha);font-size:12px;font-weight:700;line-height:1.5;white-space:nowrap}
+.pd-est-eq{color:var(--papel);font-weight:700}
 
 /* ---------- erro de campo ---------- */
 .cat-erro{font-size:13px;color:var(--erro);font-weight:700}
@@ -79,7 +91,7 @@
 .pd-col{min-width:0}
 .pd-h{font-size:22px;margin-bottom:12px}
 .pd-form{gap:16px}
-.pd-form .seg{align-self:flex-start}
+.pd-form .seg:not(.cat-seg-venda){align-self:flex-start}
 .pd-aviso-un{margin-top:8px}
 .pd-aviso-un[hidden]{display:none}
 .pd-2{align-items:start}
@@ -141,7 +153,15 @@
 
 /* celular: estoque (uso diário) antes do formulário */
 @media (max-width:959px){ #pdEstoque{order:-1} }
+@media (max-width:599px){
+  .cat-stats{gap:8px}
+  .cat-stats .stat{padding:10px 10px 11px;min-height:84px}
+  .cat-stats .rot{font-size:12px;line-height:1.2}
+  .cat-stats .val{font-size:30px;margin:2px 0}
+  .cat-stats .sub{font-size:12px;line-height:1.2}
+}
 @media (max-width:380px){
+  .cat-seg-venda span{font-size:14px;padding:4px 6px}
   .cat-nome{font-size:20px}
   .pd-est-val{font-size:54px}
   .pd-2{grid-template-columns:1fr}

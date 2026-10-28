@@ -11,6 +11,7 @@ const TELAS = window.TELAS;
 
 /* ---------- estado da tela (só nesta sessão) ---------- */
 const vista = { filtro: 'todos', busca: '' };
+const FILTROS_OK = ['todos', 'baixo', 'promo', 'inativos'];
 const histMostrar = {};          // prodId → quantos movimentos mostrar
 const PASSO_HIST = 15;
 const ABERTOS = ['novo', 'confirmado', 'pronto'];
@@ -19,7 +20,12 @@ const ABERTOS = ['novo', 'confirmado', 'pronto'];
 const semAcento = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
 const chaveBusca = s => semAcento(s).toLowerCase().trim();
 const unid = p => p.venda === 'un' ? 'un' : 'kg';
-const porUnid = p => p.venda === 'un' ? '/un' : '/kg';
+const porUnid = p => D.rotuloVenda(p);
+const temPesoAprox = p => p.venda === 'un' && p.pesoAprox > 0;
+/** Equivalente em peso do estoque de produtos por unidade com peso aproximado ("≈ 4 kg"), ou null. */
+const pesoEquiv = (p, n = p.estoque || 0) => temPesoAprox(p) && n > 0 ? `≈\u00a0${D.fmtPeso(D.arred(n * p.pesoAprox, 3)).replace(" ", "\u00a0")}` : null;
+/** Quantidade com o equivalente em peso: "8 un · ≈ 4 kg". */
+const qtdCompleta = (p, n) => { const e = pesoEquiv(p, n); return D.qtd(n, p.venda) + (e ? ` · ${e}` : ''); };
 const SIT = { ok: { rot: 'Em estoque', cls: 'tag-ok' }, baixo: { rot: 'Estoque baixo', cls: 'tag-baixo' }, zerado: { rot: 'Zerado', cls: 'tag-zerado' } };
 const tagSit = p => { const s = SIT[D.situacaoEstoque(p)]; return `<span class="pill ${s.cls}">${s.rot}</span>`; };
 const tagInativo = '<span class="pill cat-tag-inativo">Inativo</span>';
@@ -27,7 +33,9 @@ const tagInativo = '<span class="pill cat-tag-inativo">Inativo</span>';
 function idDoNome(nome) {
   let base = semAcento(nome).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'produto';
   let id = base, n = 2;
-  while (D.produto(id)) id = `${base}-${n++}`;
+  // não reaproveita id de produto excluído que ainda aparece em pedidos ou no histórico
+  const usado = x => D.produto(x) || D.estado.pedidos.some(p => (p.itens || []).some(it => it.prod === x)) || D.estado.movs.some(m => m.prod === x);
+  while (usado(id)) id = `${base}-${n++}`;
   return id;
 }
 function nomeRepetido(nome, ignorarId) {
@@ -35,8 +43,9 @@ function nomeRepetido(nome, ignorarId) {
   return D.estado.produtos.some(p => p.id !== ignorarId && chaveBusca(p.nome) === k);
 }
 function textoEstoque(p) {
-  const pc = D.pecasEstimadas(p);
-  return `<span class="num cat-est-val">${esc(D.qtd(p.estoque || 0, p.venda))}</span>${pc !== null ? `<span class="cat-est-pc">≈ ${pc} ${pc === 1 ? 'peça' : 'peças'}</span>` : ''}`;
+  const pc = D.pecasEstimadas(p), eq = pesoEquiv(p);
+  const extra = pc !== null ? `≈ ${pc} ${pc === 1 ? 'peça' : 'peças'}` : eq;
+  return `<span class="num cat-est-val">${esc(D.qtd(p.estoque || 0, p.venda))}</span>${extra ? `<span class="cat-est-pc">${extra}</span>` : ''}`;
 }
 function origemDesconto(d) {
   if (!d.pct) return '';
@@ -47,19 +56,72 @@ function htmlPreco(p, grande = false) {
   if (p.preco === null || p.preco === undefined) return `<span class="cat-sem-preco">Definir preço</span>`;
   const d = D.descontoDo(p), ef = D.precoEfetivo(p);
   if (!d.pct) return `<span class="cat-preco${grande ? ' g' : ''}"><b class="num">${esc(D.reais(p.preco))}</b><small>${porUnid(p)}</small></span>`;
-  return `<span class="cat-preco${grande ? ' g' : ''}"><s>${esc(D.reais(p.preco))}</s> <b class="num">${esc(D.reais(ef))}</b><small>${porUnid(p)}</small></span>
+  return `<span class="cat-preco${grande ? ' g' : ''}"><s>${esc(D.reais(p.preco))}</s> <span class="cat-pr-ef"><b class="num">${esc(D.reais(ef))}</b><small>${porUnid(p)}</small></span></span>
     <span class="cat-desc"><span class="pill tag-promo">−${esc(D.fmtNum(d.pct, 1))}%</span><span>${esc(origemDesconto(d))}</span></span>`;
+}
+
+/* ---------- forma de venda: Por kg · Unidade ≈500 g · Unidade ---------- */
+const UN500 = 0.5;
+const ehUn500 = kg => kg > 0 && Math.abs(kg - UN500) < 1e-9;
+/** Opção do seletor que corresponde ao produto salvo. */
+const opcaoVenda = p => p.venda !== 'un' ? 'kg' : ehUn500(p.pesoAprox) ? 'un500' : 'un';
+const OPCOES_VENDA = [['kg', 'Por kg'], ['un500', 'Unidade ≈500 g'], ['un', 'Unidade']];
+/** Seletor + campo de peso aproximado. pre = prefixo dos ids ("np" ou "pd"). */
+function htmlVenda(pre, p) {
+  const op = opcaoVenda(p);
+  const g = p.venda === 'un' && p.pesoAprox > 0 ? D.paraInput(p.pesoAprox * 1000, 0) : '';
+  return `<div class="campo"><span class="cat-rot" id="${pre}VendaRot">Vendido por</span>
+      <div class="seg cat-seg-venda" role="radiogroup" aria-labelledby="${pre}VendaRot">
+        ${OPCOES_VENDA.map(([v, r]) => `<label><input type="radio" name="${pre}Venda" value="${v}" ${v === op ? 'checked' : ''}><span>${r}</span></label>`).join('')}
+      </div>
+      ${pre === 'pd' ? `<div class="aviso pd-aviso-un" id="pdAvisoUn" hidden>${ICON.alerta}<span></span></div>` : ''}
+    </div>
+    <div class="cat-pesoap" id="${pre}PesoApBox" ${op === 'kg' ? 'hidden' : ''}>
+      ${UI.campo({ id: pre + 'PesoAp', rotulo: 'Peso aproximado de cada unidade (opcional)', valor: g, sufixo: 'g',
+        dica: 'Em gramas, ex.: 500. Se digitar 0,5 ou 1,2 entendemos como kg. Serve para mostrar o estoque também em kg.',
+        attrs: 'inputmode="decimal" autocomplete="off" placeholder="Ex.: 500"' })}
+    </div>`;
+}
+/** Lê o peso aproximado digitado (gramas; "0,5"/"1,2 kg" = kg). → { v: kg|null } ou { erro } */
+function lerPesoAprox(txt) {
+  const t = String(txt || '').trim().toLowerCase();
+  if (!t) return { v: null };
+  const emKg = /kg$/.test(t);
+  const n = D.num(t.replace(/\s*(kg|g)$/, ''));
+  if (n === null || n <= 0) return { erro: true };
+  const kg = emKg || n < 10 ? n : n / 1000;
+  if (kg < 0.01 || kg > 50) return { erro: true };
+  return { v: D.arred(kg, 3) };
+}
+/** Liga o seletor de venda ao campo de peso. aoMudar(opção) é chamado quando a opção muda. */
+function ligarVenda(raiz, pre, aoMudar) {
+  const inp = $('#' + pre + 'PesoAp', raiz), box = $('#' + pre + 'PesoApBox', raiz);
+  const sel = () => $(`input[name="${pre}Venda"]:checked`, raiz).value;
+  const marcar = v => { const r = $(`input[name="${pre}Venda"][value="${v}"]`, raiz); if (r && !r.checked) { r.checked = true; aoMudar && aoMudar(v); } };
+  $$(`input[name="${pre}Venda"]`, raiz).forEach(r => r.addEventListener('change', () => {
+    if (r.value === 'un500') inp.value = '500';
+    else if (r.value === 'un' && ehUn500(lerPesoAprox(inp.value).v)) inp.value = '';
+    box.hidden = r.value === 'kg';
+    aoMudar && aoMudar(r.value);
+  }));
+  // o seletor acompanha o que foi digitado: 500 g → "Unidade ≈500 g"; outro peso → "Unidade"
+  inp.addEventListener('input', () => {
+    if (sel() === 'kg') return;
+    const v = lerPesoAprox(inp.value).v;
+    if (ehUn500(v)) marcar('un500'); else if (sel() === 'un500') marcar('un');
+  });
+  return sel;
 }
 
 /* ---------- filtros ---------- */
 const FILTROS = [
   { id: 'todos',    nome: 'Todos',         f: () => true },
   { id: 'baixo',    nome: 'Estoque baixo', f: p => p.ativo && D.situacaoEstoque(p) !== 'ok' },
-  { id: 'sempreco', nome: 'Sem preço',     f: p => p.ativo && (p.preco === null || p.preco === undefined) },
   { id: 'promo',    nome: 'Em promoção',   f: p => p.ativo && D.descontoDo(p).pct > 0 },
   { id: 'inativos', nome: 'Inativos',      f: p => !p.ativo }
 ];
 function listaFiltrada() {
+  if (!FILTROS_OK.includes(vista.filtro)) vista.filtro = 'todos';
   const fl = (FILTROS.find(x => x.id === vista.filtro) || FILTROS[0]).f;
   const q = chaveBusca(vista.busca);
   return D.estado.produtos.filter(p => fl(p) && (!q || chaveBusca(p.nome).includes(q)));
@@ -72,6 +134,7 @@ function cartao(p) {
       ${UI.miniatura(p, 64)}
       <div class="cat-info">
         <b class="cat-nome">${esc(p.nome)}</b>
+        ${temPesoAprox(p) ? `<span class="cat-tag-venda">${esc(D.nomeVenda(p))}</span>` : ''}
         <div class="cat-precos">${htmlPreco(p)}</div>
       </div>
       <span class="cat-seta">${ICON.seta}</span>
@@ -93,16 +156,14 @@ function htmlLista() {
 }
 function htmlStats() {
   const ps = D.estado.produtos, at = ps.filter(p => p.ativo);
-  const sem = at.filter(p => p.preco === null || p.preco === undefined).length;
   const baixo = at.filter(p => D.situacaoEstoque(p) === 'baixo').length;
   const zer = at.filter(p => D.situacaoEstoque(p) === 'zerado').length;
   const st = (rot, val, sub, filtro, alerta) => `<button type="button" class="stat cat-stat" data-filtro="${filtro}" ${alerta ? 'data-alerta' : ''} aria-label="${esc(`${rot}: ${val}. Filtrar`)}">
       <span class="rot">${esc(rot)}</span><span class="val">${val}</span><span class="sub">${esc(sub)}</span></button>`;
   return `<div class="stats cat-stats">
-    ${st('Produtos ativos', at.length, `de ${ps.length} no catálogo`, 'todos', false)}
-    ${st('Sem preço', sem, sem ? 'defina para vender' : 'todos com preço', 'sempreco', sem > 0)}
-    ${st('Estoque baixo', baixo, 'no mínimo ou abaixo', 'baixo', baixo > 0)}
-    ${st('Zerados', zer, zer ? 'sem nada em estoque' : 'nenhum zerado', 'baixo', zer > 0)}
+    ${st('Produtos ativos', at.length, `de ${ps.length}`, 'todos', false)}
+    ${st('Estoque baixo', baixo, 'no mínimo', 'baixo', baixo > 0)}
+    ${st('Zerados', zer, zer ? 'sem estoque' : 'nenhum', 'baixo', zer > 0)}
   </div>`;
 }
 function htmlChips() {
@@ -161,11 +222,7 @@ function novoProduto() {
     titulo: 'Novo produto',
     html: `<form class="form" novalidate>
       ${UI.campo({ id: 'npNome', rotulo: 'Nome do produto', attrs: 'autocomplete="off" maxlength="60"' })}
-      <div class="campo"><span class="cat-rot" id="npVendaRot">Vendido por</span>
-        <div class="seg" role="radiogroup" aria-labelledby="npVendaRot">
-          <label><input type="radio" name="npVenda" value="kg" checked><span>Peso (kg)</span></label>
-          <label><input type="radio" name="npVenda" value="un"><span>Unidade</span></label>
-        </div></div>
+      ${htmlVenda('np', { venda: 'kg' })}
       ${UI.campo({ id: 'npPreco', rotulo: 'Preço', sufixo: 'R$/kg', dica: 'Pode deixar em branco e definir depois.', attrs: 'inputmode="decimal" autocomplete="off" placeholder="0,00"' })}
     </form>`,
     botoes: [
@@ -173,23 +230,23 @@ function novoProduto() {
       { texto: 'Criar produto', classe: 'btn-1', valor: 'ok', antes(d) {
         limparErros(d);
         const nome = $('#npNome', d).value.trim().replace(/\s+/g, ' ');
-        const venda = $('input[name="npVenda"]:checked', d).value;
+        const op = $('input[name="npVenda"]:checked', d).value, venda = op === 'kg' ? 'kg' : 'un';
+        const pa = venda === 'un' ? lerPesoAprox($('#npPesoAp', d).value) : { v: null };
         const txtP = $('#npPreco', d).value.trim();
         const preco = txtP ? D.num(txtP) : null;
         let ok = true;
         if (!nome) ok = erro(d, 'npNome', 'Informe o nome.') && false;
         else if (nomeRepetido(nome)) ok = erro(d, 'npNome', 'Já existe um produto com esse nome.') && false;
         if (txtP && (preco === null || preco < 0)) ok = erro(d, 'npPreco', 'Preço inválido. Use números, ex.: 89,90') && false;
+        if (pa.erro) ok = erro(d, 'npPesoAp', 'Peso inválido. Use gramas, ex.: 500') && false;
         if (!ok) { focarErro(d); return false; }
-        criado = D.produtoBase({ id: idDoNome(nome), nome, venda, preco: preco === null ? null : D.arred(preco) });
+        criado = D.produtoBase({ id: idDoNome(nome), nome, venda, pesoAprox: pa.v, preco: preco === null ? null : D.arred(preco) });
         D.estado.produtos.push(criado);
         D.salvar();
       } }
     ],
     montar(d) {
-      $$('input[name="npVenda"]', d).forEach(r => r.addEventListener('change', () => {
-        $('#npPreco', d).nextElementSibling.textContent = r.value === 'un' ? 'R$/un' : 'R$/kg';
-      }));
+      ligarVenda(d, 'np', op => { $('#npPreco', d).nextElementSibling.textContent = op === 'kg' ? 'R$/kg' : 'R$/un'; });
     }
   }).then(v => {
     if (v === 'ok' && criado) { UI.toast(`${criado.nome} criado`); UI.ir(`#/produto/${encodeURIComponent(criado.id)}`); }
@@ -228,7 +285,7 @@ function dialogoEstoque(prodId, modoIni = 'entrada') {
   return UI.abrirDialogo({
     titulo: 'Ajustar estoque',
     html: `<form class="form aj" novalidate>
-      <div class="aj-prod">${UI.miniatura(p, 44)}<div><b>${esc(p.nome)}</b><span>Agora: <b class="num">${esc(D.qtd(p.estoque || 0, p.venda))}</b></span></div></div>
+      <div class="aj-prod">${UI.miniatura(p, 44)}<div><b>${esc(p.nome)}</b><span>Agora: <b class="num">${esc(D.qtd(p.estoque || 0, p.venda))}</b>${pesoEquiv(p) ? ` · ${esc(pesoEquiv(p))}` : ''}${temPesoAprox(p) ? ` · ${esc(D.nomeVenda(p))}` : ''}</span></div></div>
       <div class="seg aj-seg" role="radiogroup" aria-label="Tipo de ajuste">
         ${Object.entries(MODOS).map(([k, m]) => `<label><input type="radio" name="ajModo" value="${k}" ${k === modoIni ? 'checked' : ''}><span><b aria-hidden="true">${m.sinal}</b>${m.rot}</span></label>`).join('')}
       </div>
@@ -268,7 +325,8 @@ function dialogoEstoque(prodId, modoIni = 'entrada') {
         if (q === null || q < 0) { prev.textContent = ''; return; }
         const novo = modo === 'entrada' ? atual + q : modo === 'saida' ? atual - q : q;
         const dl = D.arred(novo - atual, 3);
-        prev.innerHTML = `Fica <b class="num">${esc(D.qtd(D.arred(novo, 3), p.venda))}</b>${modo === 'contagem' && dl ? ` <span class="${dl > 0 ? 'mais' : 'menos'}">(${dl > 0 ? '+' : '−'}${esc(D.qtd(Math.abs(dl), p.venda))})</span>` : ''}${novo < 0 ? ' · <span class="menos">ficaria negativo</span>' : ''}`;
+        const eqN = pesoEquiv(p, D.arred(novo, 3));
+        prev.innerHTML = `Fica <b class="num">${esc(D.qtd(D.arred(novo, 3), p.venda))}</b>${eqN ? ` <span>(${esc(eqN)})</span>` : ''}${modo === 'contagem' && dl ? ` <span class="${dl > 0 ? 'mais' : 'menos'}">(${dl > 0 ? '+' : '−'}${esc(D.qtd(Math.abs(dl), p.venda))})</span>` : ''}${novo < 0 ? ' · <span class="menos">ficaria negativo</span>' : ''}`;
       };
       $$('input[name="ajModo"]', d).forEach(r => r.addEventListener('change', () => {
         rot.textContent = MODOS[r.value].campo;
@@ -288,8 +346,8 @@ function dialogoEstoque(prodId, modoIni = 'entrada') {
     if (v !== 'ok' || !feito) return false;
     const pr = D.produto(prodId);
     if (!feito.delta) { UI.toast(`Estoque de ${pr.nome} já estava em ${D.qtd(pr.estoque, pr.venda)}`); return false; }
-    const txt = feito.modo === 'contagem' ? `Estoque de ${pr.nome} definido em ${D.qtd(pr.estoque, pr.venda)}`
-      : `${feito.modo === 'entrada' ? '+' : '−'}${D.qtd(feito.q, pr.venda)} · ${pr.nome} agora com ${D.qtd(pr.estoque, pr.venda)}`;
+    const txt = feito.modo === 'contagem' ? `Estoque de ${pr.nome} definido em ${qtdCompleta(pr, pr.estoque)}`
+      : `${feito.modo === 'entrada' ? '+' : '−'}${D.qtd(feito.q, pr.venda)} · ${pr.nome} agora com ${qtdCompleta(pr, pr.estoque)}`;
     UI.toast(txt);
     return true;
   });
@@ -326,7 +384,8 @@ function htmlEstoque(p) {
   return `<div class="card-escuro pd-est pd-est-${s}">
       <div class="pd-est-topo"><span class="pd-est-rot">Estoque atual</span>${tagSit(p)}</div>
       <div class="pd-est-val num">${esc(D.fmtNum(p.estoque || 0, p.venda === 'un' ? 0 : 3))}<small>${unid(p)}</small></div>
-      <p class="pd-est-sub">${pc !== null ? `≈ ${pc} ${pc === 1 ? 'peça' : 'peças'} (peça média ${esc(D.fmtNum(p.pesoMedio))} kg)` : (p.venda === 'kg' ? 'Informe o peso médio da peça para estimar as peças' : 'Contado em unidades')}${p.estoqueMin > 0 ? ` · alerta em ${esc(D.qtd(p.estoqueMin, p.venda))}` : ''}</p>
+      <p class="pd-est-sub">${pc !== null ? `≈ ${pc} ${pc === 1 ? 'peça' : 'peças'} (peça média ${esc(D.fmtNum(p.pesoMedio))} kg)` : p.venda === 'kg' ? 'Informe o peso médio da peça para estimar as peças'
+        : temPesoAprox(p) ? `${pesoEquiv(p) ? `<b class="pd-est-eq">${esc(pesoEquiv(p))}</b> · ` : ''}unidades de ≈${esc(D.fmtPeso(p.pesoAprox))}` : 'Contado em unidades'}${p.estoqueMin > 0 ? ` · alerta em ${esc(D.qtd(p.estoqueMin, p.venda))}` : ''}</p>
       <div class="pd-est-acoes">
         <button type="button" class="btn btn-1" data-mov="entrada">${ICON.mais}Entrada</button>
         <button type="button" class="btn pd-btn-cl" data-mov="saida">${ICON.menos}Saída</button>
@@ -340,13 +399,7 @@ function htmlForm(p) {
   const u = unid(p);
   return `<form class="card form pd-form" id="pdForm" novalidate>
     ${UI.campo({ id: 'pdNome', rotulo: 'Nome', valor: p.nome, attrs: 'autocomplete="off" maxlength="60"' })}
-    <div class="campo"><span class="cat-rot" id="pdVendaRot">Vendido por</span>
-      <div class="seg" role="radiogroup" aria-labelledby="pdVendaRot">
-        <label><input type="radio" name="pdVenda" value="kg" ${p.venda !== 'un' ? 'checked' : ''}><span>Peso (kg)</span></label>
-        <label><input type="radio" name="pdVenda" value="un" ${p.venda === 'un' ? 'checked' : ''}><span>Unidade</span></label>
-      </div>
-      <div class="aviso pd-aviso-un" id="pdAvisoUn" hidden>${ICON.alerta}<span></span></div>
-    </div>
+    ${htmlVenda('pd', p)}
     <div class="form-2 pd-2">
       ${UI.campo({ id: 'pdPreco', rotulo: `Preço`, valor: D.paraInput(p.preco, 2), sufixo: `R$/${u}`, attrs: 'inputmode="decimal" autocomplete="off" placeholder="Definir"' })}
       ${UI.campo({ id: 'pdDesc', rotulo: 'Desconto do produto', valor: p.desconto ? D.paraInput(p.desconto, 1) : '', sufixo: '%', attrs: 'inputmode="decimal" autocomplete="off" placeholder="0"' })}
@@ -387,17 +440,20 @@ TELAS.produto = {
   montar(el, params) {
     const p = D.produto(params[0]); if (!p) return;
     const f = $('#pdForm', el);
-    const vendaSel = () => $('input[name="pdVenda"]:checked', f).value;
+    const opSel = () => $('input[name="pdVenda"]:checked', f).value;
+    const vendaSel = () => opSel() === 'kg' ? 'kg' : 'un';
+    /** Produto como está no formulário (para o rótulo "/un (≈500 g)"). */
+    const rascunho = () => ({ venda: vendaSel(), pesoAprox: vendaSel() === 'un' ? (lerPesoAprox($('#pdPesoAp', f).value).v || null) : null });
     const atualizarFinal = () => {
-      const u = vendaSel(), preco = D.num($('#pdPreco', f).value), dsc = D.num($('#pdDesc', f).value) || 0;
+      const u = esc(D.rotuloVenda(rascunho())), preco = D.num($('#pdPreco', f).value), dsc = D.num($('#pdDesc', f).value) || 0;
       const box = $('#pdFinal', f);
       if (preco === null || preco < 0 || dsc < 0 || dsc > 90) { box.innerHTML = preco === null && !$('#pdPreco', f).value.trim() ? '<span class="muted">Sem preço: aparece como “Definir preço”.</span>' : ''; return; }
       let pct = dsc, origem = dsc > 0 ? 'desconto do produto' : '';
       D.promocoesDo(p).forEach(pr => { if ((Number(pr.desconto) || 0) > pct) { pct = Number(pr.desconto); origem = `promoção “${pr.nome || 'sem nome'}”`; } });
       const ef = D.arred(preco * (1 - pct / 100));
       box.innerHTML = pct > 0
-        ? `<span>Cliente paga</span> <b class="num">${esc(D.reais(ef))}</b><small>/${u}</small> <span class="pill tag-promo">−${esc(D.fmtNum(pct, 1))}%</span> <span class="muted">${esc(origem)}</span>`
-        : `<span>Cliente paga</span> <b class="num">${esc(D.reais(preco))}</b><small>/${u}</small> <span class="muted">sem desconto</span>`;
+        ? `<span>Cliente paga</span> <b class="num">${esc(D.reais(ef))}</b><small>${u}</small> <span class="pill tag-promo">−${esc(D.fmtNum(pct, 1))}%</span> <span class="muted">${esc(origem)}</span>`
+        : `<span>Cliente paga</span> <b class="num">${esc(D.reais(preco))}</b><small>${u}</small> <span class="muted">sem desconto</span>`;
     };
     const atualizarUnid = () => {
       const u = vendaSel();
@@ -410,8 +466,9 @@ TELAS.produto = {
       atualizarFinal();
     };
     const marcarSujo = () => { $('#pdSujo', f).textContent = 'Alterações não salvas'; };
-    f.addEventListener('input', e => { if (e.target.id === 'pdPreco' || e.target.id === 'pdDesc') atualizarFinal(); marcarSujo(); });
-    f.addEventListener('change', e => { if (e.target.name === 'pdVenda') atualizarUnid(); marcarSujo(); });
+    f.addEventListener('input', e => { if (['pdPreco', 'pdDesc', 'pdPesoAp'].includes(e.target.id)) atualizarFinal(); marcarSujo(); });
+    f.addEventListener('change', marcarSujo);
+    ligarVenda(f, 'pd', atualizarUnid);
     atualizarUnid();
 
     f.addEventListener('submit', e => {
@@ -419,6 +476,8 @@ TELAS.produto = {
       limparErros(f);
       const nome = $('#pdNome', f).value.trim().replace(/\s+/g, ' ');
       const venda = vendaSel();
+      const pa = venda === 'un' ? lerPesoAprox($('#pdPesoAp', f).value) : { v: null };
+      if (pa.erro) erro(f, 'pdPesoAp', 'Peso inválido: use gramas, ex.: 500');
       const lerNum = (id, { vazio = null, min = 0, max = Infinity, msg }) => {
         const t = $('#' + id, f).value.trim();
         if (!t) return { v: vazio };
@@ -434,12 +493,13 @@ TELAS.produto = {
       const peso = venda === 'kg' ? lerNum('pdPeso', { min: 0.001, msg: 'Peso médio inválido: use kg, ex.: 1,5' }) : { v: p.pesoMedio };
       const min = lerNum('pdMin', { vazio: 0, min: 0, msg: 'Valor inválido: use um número maior ou igual a zero.' });
       if (venda === 'un' && min.v && !Number.isInteger(min.v)) { erro(f, 'pdMin', 'Para venda por unidade, use um número inteiro.'); min.erro = true; }
-      if (!ok || preco.erro || desc.erro || peso.erro || min.erro) { focarErro(f); UI.toast('Confira os campos destacados', 'erro'); return; }
+      if (!ok || pa.erro || preco.erro || desc.erro || peso.erro || min.erro) { focarErro(f); UI.toast('Confira os campos destacados', 'erro'); return; }
       Object.assign(p, {
         nome, venda,
         preco: preco.v === null ? null : D.arred(preco.v),
         desconto: D.arred(desc.v, 1),
         pesoMedio: peso.v === null ? null : D.arred(peso.v, 3),
+        pesoAprox: pa.v,
         estoqueMin: D.arred(min.v, 3),
         ativo: $('#pdAtivo', f).checked,
         obs: $('#pdObs', f).value.trim()

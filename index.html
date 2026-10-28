@@ -634,7 +634,7 @@ const PRODUTOS = [
   { id:'panceta', nome:'Panceta', sub:'A panceta Dopira', tag:'', cats:['churrasco','rapido'], fotos:['img/panceta.jpg','img/panceta-2.jpg'],
     curta:'Em casa ou no churrasco, sem inventar moda: faz sucesso.',
     longa:'Não seja como o Lobo Mau, não invente moda: em casa ou no churrasco, a panceta Dopira faz sucesso. Defumada na lenha de laranjeira, pronta pra virar o destaque da mesa.',
-    ficha:[['Serve em','Casa ou churras'],['Lenha','Laranjeira'],['Ideal para','Petisco'],['Pedido','Sob encomenda']],
+    ficha:[['Venda','Unidade de aprox. 500 g'],['Lenha','Laranjeira'],['Ideal para','Petisco'],['Pedido','Sob encomenda']],
     dica:'Combina com qualquer churrasco: é só levar pra grelha e servir.',
     combina:['cupim','kit'] },
   { id:'costela', nome:'Costela', sub:'Pro almoço de domingo', tag:'Almoço de domingo', cats:['almoco'],
@@ -685,7 +685,8 @@ Object.keys(E.itens).forEach(k => { if (!tem(P, k) || !(E.itens[k] > 0)) delete 
 if (![1,2,3].includes(E.etapa)) E.etapa = 1;
 const salvar = () => { try { localStorage.setItem(LS, JSON.stringify(E)); } catch (e) {} };
 /* cupons: os padrões valem sempre; se o app de gestão estiver neste aparelho, usa os cupons de lá */
-const CUPONS_PADRAO = [{ codigo:'PRIMEIRACOMPRA', tipo:'%', valor:20, ativo:true, descricao:'20% de desconto no pedido' }];
+const CUPONS_PADRAO = [{ codigo:'PRIMEIRACOMPRA', tipo:'%', valor:20, ativo:true, primeiraCompra:true, descricao:'20% de desconto no pedido' },
+  { codigo:'DOMINGO', tipo:'%', valor:5, ativo:true, antecedencia:1, descricao:'5% de desconto para quem pede antes do domingo' }];
 function cupons(){
   try { const a = JSON.parse(localStorage.getItem('dopira-admin-v1') || 'null'); if (a && Array.isArray(a.cupons)) return a.cupons; } catch (e) {}
   return CUPONS_PADRAO;
@@ -693,10 +694,13 @@ function cupons(){
 const normCupom = c => String(c || '').toUpperCase().replace(/\s+/g, '');
 function cupomValido(){
   const c = normCupom(E.cupom); if (!c) return null;
-  const hoje = new Date().toISOString().slice(0, 10);
-  return cupons().find(x => x.ativo && normCupom(x.codigo) === c && (!x.validade || x.validade >= hoje)) || null;
+  const d = new Date(), hoje = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);   // data de Brasília, não UTC
+  // antecedência: dias entre hoje e o domingo escolhido (sem domingo escolhido ainda, não bloqueia)
+  const antesOk = x => !(x.antecedencia > 0) || !E.domingo || Math.round((new Date(E.domingo + 'T12:00') - new Date(hoje + 'T12:00')) / 86400000) >= x.antecedencia;
+  return cupons().find(x => x.ativo && normCupom(x.codigo) === c && (!x.validade || x.validade >= hoje) && antesOk(x)) || null;
 }
 const descCupom = x => x.descricao || (x.tipo === '%' ? `${x.valor}% de desconto no pedido` : `R$ ${Number(x.valor).toFixed(2).replace('.', ',')} de desconto no pedido`);
+const regrasCupom = x => [x.primeiraCompra ? 'só na primeira compra' : '', x.minimo > 0 ? `pedido mínimo de R$ ${Number(x.minimo).toFixed(2).replace('.', ',')}` : ''].filter(Boolean).join(' e ');
 const totalItens = () => Object.values(E.itens).reduce((a, b) => a + b, 0);
 
 /* ================= DATAS / PRAZO ================= */
@@ -1086,7 +1090,7 @@ function renderResumo(){
     </dl>
     ${E.etapa === 3 ? `<div><span class="muted" style="font-size:14px">Mensagem que vai pro WhatsApp:</span><div class="preview" style="margin-top:6px">${esc(mensagem())}</div></div>` : ''}
     ${prazoHTML()}`;
-  const cm = $('#cupomMsg'); if (cm){ const cv = cupomValido(); cm.textContent = !E.cupom.trim() ? '' : cv ? `Cupom aplicado: ${descCupom(cv)}.` : 'Cupom não encontrado ou fora da validade.'; cm.dataset.ok = cv ? '1' : ''; }
+  const cm = $('#cupomMsg'); if (cm){ const cv = cupomValido(); cm.textContent = !E.cupom.trim() ? '' : cv ? `Cupom aplicado: ${descCupom(cv)}.${regrasCupom(cv) ? ` Vale ${regrasCupom(cv)}; a gente confirma no WhatsApp.` : ''}` : 'Cupom não encontrado ou fora da validade.'; cm.dataset.ok = cv ? '1' : ''; }
   const z = $('#enviarZap'); if (z) z.href = `https://wa.me/${ZAP}?text=${encodeURIComponent(mensagem())}`;
 }
 /* guarda a encomenda enviada para o app de gestão (mesmo aparelho) */
@@ -1094,7 +1098,11 @@ function registrarPedido(){
   try {
     const k = 'dopira-pedidos-site', l = JSON.parse(localStorage.getItem(k) || '[]');
     const cv = cupomValido();
-    l.push({ id:'s' + Date.now().toString(36), criado:new Date().toISOString(), itens:{ ...E.itens }, domingo:E.domingo, modo:E.modo, endereco:E.endereco, referencia:E.referencia, nome:E.nome, telefone:E.telefone, obs:E.obs, cupom: cv ? normCupom(cv.codigo) : '' });
+    const assin = JSON.stringify([E.itens, E.domingo, E.modo, E.endereco, E.nome, E.telefone, E.obs, cv ? cv.codigo : '']);
+    if (E.envioAssin !== assin || !E.envioId){ E.envioAssin = assin; E.envioId = 's' + Date.now().toString(36); salvar(); }
+    const i = l.findIndex(x => x && x.id === E.envioId);
+    if (i >= 0) l.splice(i, 1);   // reenviar a mesma encomenda só atualiza, não duplica
+    l.push({ id:E.envioId, criado:new Date().toISOString(), itens:{ ...E.itens }, domingo:E.domingo, modo:E.modo, endereco:E.endereco, referencia:E.referencia, nome:E.nome, telefone:E.telefone, obs:E.obs, cupom: cv ? normCupom(cv.codigo) : '' });
     localStorage.setItem(k, JSON.stringify(l.slice(-200)));
   } catch (e) {}
 }

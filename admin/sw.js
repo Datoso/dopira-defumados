@@ -1,6 +1,6 @@
 // Dopira Gestão: funciona sem internet depois da primeira visita.
 // Página e scripts: rede primeiro (pega a versão nova), cache se estiver offline.
-const VERSAO = 'dopira-gestao-v1';
+const VERSAO = 'dopira-gestao-v3';
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
   './css/base.css', './css/inicio.css', './css/pedidos.css', './css/catalogo.css', './css/promocoes.css',
@@ -20,5 +20,6 @@ self.addEventListener('fetch', e => {
   const rede = () => fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSAO).then(c => c.put(req, cp)); } return r; });
   if (req.mode === 'navigate') { e.respondWith(rede().catch(() => caches.match('./index.html'))); return; }
   if (/\.(js|css|webmanifest)$/.test(url.pathname)) { e.respondWith(rede().catch(() => caches.match(req))); return; }
-  e.respondWith(caches.match(req).then(c => c || rede()));
+  // imagens e fontes: mostra o que tem no cache e atualiza por trás (foto trocada aparece na próxima abertura)
+  e.respondWith(caches.match(req).then(c => { const n = rede().catch(() => c); return c || n; }));
 });

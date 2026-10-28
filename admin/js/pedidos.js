@@ -186,25 +186,42 @@ function sincronizarEstoque(ped) {
     it.semBaixa = false;
   });
 }
-let timer = null, pendente = null, aposSalvar = null;
+/* Digitação salva com atraso (só os dados). O estoque só é acertado em salvarJa():
+   no change/blur do campo, em cliques (+/−, remover, status) e ao sair da tela —
+   assim digitar "2,4" devagar não gera movimentos intermediários no histórico. */
+let timer = null, pendente = null, sujo = null, pedAberto = null;
 function salvarJa(ped) {
-  clearTimeout(timer); timer = null; pendente = null;
+  clearTimeout(timer); timer = null; pendente = null; sujo = null;
   sincronizarEstoque(ped); D.salvar();
-  const f = aposSalvar; aposSalvar = null; if (f) try { f(); } catch (e) {}
 }
-function agendar(ped, depois) {
-  pendente = ped; aposSalvar = depois || null; clearTimeout(timer);
-  timer = setTimeout(() => { if (pendente) salvarJa(pendente); }, 400);
+function agendar(ped) {
+  pendente = ped; sujo = ped; clearTimeout(timer);
+  timer = setTimeout(() => { timer = null; pendente = null; D.salvar(); }, 400);
 }
-window.addEventListener('hashchange', () => { if (pendente) salvarJa(pendente); });
-window.addEventListener('pagehide', () => { if (pendente) salvarJa(pendente); });
+/** Pedido "Novo pedido" que ficou sem nada preenchido: não deve sobrar na lista nem no badge. */
+const vazio = p => p.status === 'novo' && p.origem === 'manual' && !String(p.cliente || '').trim()
+  && !D.soDigitos(p.telefone) && !p.itens.length;
+function aoSair(paraHash) {
+  const ped = pendente || sujo; if (ped) salvarJa(ped);
+  const id = pedAberto; if (!id) return;
+  if (paraHash !== undefined && paraHash === '#/pedido/' + encodeURIComponent(id)) return;   // continua no mesmo pedido
+  pedAberto = null;
+  const p = D.pedido(id);
+  if (p && vazio(p)) { const i = D.estado.pedidos.indexOf(p); if (i >= 0) { D.estado.pedidos.splice(i, 1); D.salvar(); } }
+}
+window.addEventListener('hashchange', () => aoSair(location.hash));
+window.addEventListener('pagehide', () => aoSair());
+// voltou do cache do navegador depois de um pagehide que descartou o pedido vazio: redesenha
+window.addEventListener('pageshow', e => { if (e.persisted && /^#\/pedido\//.test(location.hash)) App.redesenhar(); });
 
-function textoPreco(l) {
+/** Venda por unidade com peso aproximado: peso total aproximado do item (kg) ou null. */
+const pesoAproxItem = (prod, qtd) => prod && prod.venda === 'un' && prod.pesoAprox > 0 ? D.arred((Number(qtd) || 0) * prod.pesoAprox, 3) : null;
+function textoPreco(l, ped) {
   const prod = l.prod; if (!prod) return '<span class="muted">Produto removido</span>';
-  const un = prod.venda === 'un' ? '/un' : '/kg';
+  const un = esc(D.rotuloVenda(prod));
   if (l.preco === null) return `<a class="ped-falta" href="#/produto/${encodeURIComponent(prod.id)}">Definir preço</a>`;
   if (l.item.preco !== undefined && l.item.preco !== null) return `<span class="num">${esc(D.reais(l.preco))}${un}</span> <small class="muted">preço da confirmação</small>`;
-  const d = D.descontoDo(prod);
+  const d = D.descontoDo(prod, D.diaDoPedido(ped));
   if (d.pct > 0 && prod.preco !== null) {
     const rot = d.origem === 'promocao' ? `promo −${D.fmtNum(d.pct, 1)}%` : `−${D.fmtNum(d.pct, 1)}%`;
     return `<s class="muted">${esc(D.reais(prod.preco))}</s> <span class="num">${esc(D.reais(l.preco))}${un}</span> <span class="pill tag-promo">${esc(rot)}</span>`;
@@ -216,7 +233,10 @@ function textoValor(l) {
   return '<span class="ped-conf">a confirmar</span>';
 }
 function textoEstimativa(l) {
-  const prod = l.prod; if (!prod || prod.venda !== 'kg') return '';
+  const prod = l.prod;
+  const pa = pesoAproxItem(prod, l.item.qtd);
+  if (pa !== null) return `≈ ${D.fmtPeso(pa)}${(Number(l.item.qtd) || 0) > 1 ? ` (≈${D.fmtPeso(prod.pesoAprox)} cada)` : ''}`;
+  if (!prod || prod.venda !== 'kg') return '';
   if (l.item.peso > 0) return '';
   if (l.estimado) return `≈ ${D.fmtNum(l.base)} kg estimado (${D.fmtNum(prod.pesoMedio)} kg/peça)`;
   return 'Sem peso médio no produto: informe o peso';
@@ -229,7 +249,7 @@ function htmlItem(ped, l, i) {
       ${UI.miniatura(prod, 48)}
       <div class="ped-item-nome">
         <b>${prod ? esc(prod.nome) : 'Produto removido'}</b>
-        <span class="ped-item-preco">${textoPreco(l)}</span>
+        <span class="ped-item-preco">${textoPreco(l, ped)}</span>
       </div>
       <button type="button" class="btn-ic ped-rm" data-rm="${i}" aria-label="Remover ${esc(prod ? prod.nome : 'item')}">${ICON.lixo}</button>
     </div>
@@ -247,6 +267,7 @@ function htmlItem(ped, l, i) {
         <div class="campo-in"><input id="pdP${i}" data-peso="${i}" inputmode="decimal" placeholder="opcional" value="${esc(it.peso > 0 ? D.paraInput(it.peso) : '')}"><span class="suf">kg</span></div>
         <small class="dica" data-est="${i}">${esc(textoEstimativa(l))}</small>
       </div>` : ''}
+      ${pesoAproxItem(prod, it.qtd) !== null ? `<div class="ped-aprox"><span class="ped-rot">Peso aprox.</span><span class="ped-aprox-v num" data-est="${i}">${esc(textoEstimativa(l))}</span></div>` : ''}
       <div class="ped-item-valor" data-valor="${i}">${textoValor(l)}</div>
     </div>
     <p class="ped-item-aviso" data-aviso="${i}" ${ped.baixado && it.semBaixa ? '' : 'hidden'}>${ICON.alerta}Ainda sem baixa no estoque: informe o peso real.</p>
@@ -290,18 +311,18 @@ function htmlStatus(ped) {
   if (ped.status === 'cancelado') {
     return `<div class="ped-status card ped-status-canc">
       <div class="ped-status-txt">${ICON.x}<span><b>Pedido cancelado.</b> Os itens não estão reservados no estoque.</span></div>
-      <button type="button" class="btn btn-2 btn-sm" data-st="novo">Reabrir pedido</button>
+      <button type="button" class="btn btn-2 btn-sm" id="pdReabrir" data-st="novo">Reabrir pedido</button>
     </div>`;
   }
   const atual = FLUXO.indexOf(ped.status);
-  const passos = FLUXO.map((s, i) => `<li><button type="button" class="ped-passo${i < atual ? ' feito' : ''}${i === atual ? ' atual' : ''}" data-st="${s}" ${i === atual ? 'aria-current="step"' : ''}>
+  const passos = FLUXO.map((s, i) => `<li><button type="button" id="pdSt-${s}" class="ped-passo${i < atual ? ' feito' : ''}${i === atual ? ' atual' : ''}" data-st="${s}" ${i === atual ? 'aria-current="step"' : ''}>
       <span class="ped-bola">${i < atual ? ICON.check : i + 1}</span><span>${esc(D.nomeStatus(s))}</span></button></li>`).join('');
   const prox = FLUXO[atual + 1];
   return `<div class="ped-status card">
     <ol class="ped-fluxo" aria-label="Andamento do pedido">${passos}</ol>
     <div class="ped-status-acoes">
-      ${prox ? `<button type="button" class="btn btn-3" data-st="${prox}">${ICON.check}${esc(ACAO[ped.status])}</button>` : `<p class="ped-fim">${ICON.check}Pedido entregue${ped.pago ? ' e pago' : ''}.</p>`}
-      <button type="button" class="btn-link ped-canc" data-cancelar>Cancelar pedido</button>
+      ${prox ? `<button type="button" class="btn btn-3" id="pdAcao" data-st="${prox}">${ICON.check}${esc(ACAO[ped.status])}</button>` : `<p class="ped-fim">${ICON.check}Pedido entregue${ped.pago ? ' e pago' : ''}.</p>`}
+      <button type="button" class="btn-link ped-canc" id="pdCancelar" data-cancelar>Cancelar pedido</button>
     </div>
     <p class="ped-nota">${ped.baixado ? 'Os itens já saíram do estoque. Cancelar devolve; mudar itens ou pesos acerta o estoque na hora.' : 'Ao confirmar, os itens saem do estoque. Cancelar devolve.'}</p>
   </div>`;
@@ -311,7 +332,10 @@ function msgZap(ped, t) {
   const nome = (ped.cliente || '').trim().split(/\s+/)[0];
   const itens = t.linhas.map(l => {
     const pr = l.prod, n = pr ? pr.nome : 'Produto';
-    let s = pr && pr.venda === 'un' ? `• ${D.fmtNum(l.item.qtd, 0)} ${n}` : `• ${D.fmtNum(l.item.qtd, 0)} ${unidadeQtd(pr, l.item.qtd)} de ${n}`;
+    const q = Number(l.item.qtd) || 0;
+    let s = pr && pr.venda === 'un'
+      ? (pr.pesoAprox > 0 ? `• ${D.fmtNum(q, 0)} ${q === 1 ? 'unidade' : 'unidades'} de ${n} (≈${D.fmtPeso(pr.pesoAprox)} cada)` : `• ${D.fmtNum(q, 0)} ${n}`)
+      : `• ${D.fmtNum(q, 0)} ${unidadeQtd(pr, q)} de ${n}`;
     if (pr && pr.venda === 'kg') {
       if (l.item.peso > 0) s += ` (${D.fmtNum(l.item.peso)} kg)`;
       else if (l.estimado) s += ` (aprox. ${D.fmtNum(l.base)} kg)`;
@@ -340,6 +364,7 @@ function textoResumo(ped, t) {
     const pr = l.prod;
     let s = `- ${D.fmtNum(l.item.qtd, 0)}x ${pr ? pr.nome : 'Produto removido'}`;
     if (pr && pr.venda === 'kg') s += l.item.peso > 0 ? ` · ${D.fmtNum(l.item.peso)} kg` : (l.estimado ? ` · ≈${D.fmtNum(l.base)} kg` : ' · sem peso');
+    else if (pesoAproxItem(pr, l.item.qtd) !== null) s += ` · ≈${D.fmtPeso(pesoAproxItem(pr, l.item.qtd))} (≈${D.fmtPeso(pr.pesoAprox)} cada)`;
     s += ` · ${l.valor !== null ? D.reais(l.valor) : 'a confirmar'}`;
     return s;
   });
@@ -376,7 +401,7 @@ TELAS.pedido = {
           <p class="ped-meta">${UI.pillStatus(ped.status)}<span>${esc(ORIGEM[ped.origem] || 'Manual')}</span><span>Criado em ${esc(D.fmtDataHora(ped.criado))}</span></p>
         </div>
       </div>
-      <div id="pdStatus">${htmlStatus(ped)}</div>
+      <div id="pdStatus" tabindex="-1" aria-label="Status do pedido">${htmlStatus(ped)}</div>
 
       <div class="ped-grade">
         <div class="ped-col">
@@ -422,7 +447,7 @@ TELAS.pedido = {
                 <div class="campo-in"><input id="pdCupom" data-k="cupom" value="${esc(ped.cupom)}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Código"></div>
                 <small class="ped-cupom-res" id="pdCupomRes" aria-live="polite">${htmlCupomRes(t)}</small>
               </div>
-              <div class="campo">
+              <div class="campo" id="pdTaxaCampo" ${ent ? '' : 'hidden'}>
                 <label for="pdTaxa">Taxa de entrega</label>
                 <div class="campo-in"><input id="pdTaxa" data-k="taxa" inputmode="decimal" value="${esc(ped.taxa ? D.paraInput(ped.taxa, 2) : '')}" placeholder="0,00"><span class="suf">R$</span></div>
               </div>
@@ -443,6 +468,7 @@ TELAS.pedido = {
   montar(el, params) {
     const ped = D.pedido(params[0]); if (!ped) return;
     const raiz = $('.ped-det', el);
+    pedAberto = ped.id;
 
     const atualizar = () => {
       const t = D.totais(ped);
@@ -484,12 +510,13 @@ TELAS.pedido = {
         const it = ped.itens[ip]; if (!it) return;
         const n = D.num(e.target.value);
         it.peso = n !== null && n > 0 ? D.arred(n, 3) : null;
-        agendar(ped, ped.baixado ? atualizar : null); atualizar();
+        agendar(ped); atualizar();
       }
     });
     raiz.addEventListener('change', e => {
       if (e.target.name === 'pdModo') {
         ped.modo = e.target.value; $('#pdEntrega', raiz).hidden = ped.modo === 'Retirada';
+        $('#pdTaxaCampo', raiz).hidden = ped.modo === 'Retirada';
         salvarJa(ped); atualizar(); UI.toast(`Modo: ${ped.modo}`); return;
       }
       if (e.target.id === 'pdPago') { ped.pago = e.target.checked; salvarJa(ped); UI.toast(ped.pago ? 'Marcado como pago' : 'Marcado como não pago'); return; }
@@ -526,7 +553,7 @@ TELAS.pedido = {
       if (d.excluir !== undefined) {
         const ok = await UI.confirmar(`Excluir o pedido #${ped.num} de vez?${ped.baixado ? ' Os itens voltam para o estoque.' : ''} Não dá para desfazer.`, { sim: 'Excluir', perigo: true });
         if (!ok) return;
-        clearTimeout(timer); pendente = null;
+        clearTimeout(timer); timer = null; pendente = null; sujo = null; pedAberto = null;
         const devolveu = ped.baixado;
         if (ped.baixado) D.mudarStatus(ped, 'cancelado');
         const idx = D.estado.pedidos.indexOf(ped); if (idx >= 0) D.estado.pedidos.splice(idx, 1);
@@ -543,11 +570,14 @@ async function mudar(ped, novo, jaConfirmou) {
   if (novo === 'novo' && ped.baixado && !jaConfirmou) {
     if (!await UI.confirmar(`Voltar o pedido #${ped.num} para "Novo"? Os itens voltam para o estoque até você confirmar de novo.`, { sim: 'Voltar para Novo' })) return;
   }
-  if (pendente) salvarJa(ped);
+  if (pendente || sujo) salvarJa(ped);
   const tinha = ped.baixado;
   const avisos = D.mudarStatus(ped, novo);
   D.salvar();
   App.redesenhar();
+  // App.redesenhar mantém o foco pelo id; se o botão sumiu (cancelar, reabrir, entregue), foca o bloco de status
+  const ativo = document.activeElement;
+  if (!ativo || ativo === document.body || !ativo.isConnected || !ativo.closest('#tela')) { const st = document.getElementById('pdStatus'); if (st) st.focus({ preventScroll: true }); }
   let msg = `Pedido #${ped.num}: ${D.nomeStatus(novo)}`;
   if (!tinha && ped.baixado) msg += ' · baixa no estoque';
   if (tinha && !ped.baixado) msg += ' · estoque devolvido';
@@ -564,9 +594,9 @@ async function mudar(ped, novo, jaConfirmou) {
 function escolherProduto(ped, depois) {
   const ativos = D.estado.produtos.filter(p => p.ativo);
   const html = ativos.length ? `<ul class="ped-escolha">${ativos.map(p => {
-    const pe = D.precoEfetivo(p), un = p.venda === 'un' ? '/un' : '/kg';
+    const pe = D.precoNoPedido(p, ped), un = esc(D.rotuloVenda(p));
     const sit = D.situacaoEstoque(p);
-    const d = D.descontoDo(p);
+    const d = D.descontoDo(p, D.diaDoPedido(ped));
     const ja = ped.itens.find(i => i.prod === p.id);
     return `<li><button type="button" class="ped-op" data-prod="${esc(p.id)}">
       ${UI.miniatura(p, 44)}
@@ -589,7 +619,7 @@ function escolherProduto(ped, depois) {
         if (it) it.qtd = (Number(it.qtd) || 0) + 1;
         else {
           it = { prod: id, qtd: 1 };
-          if (ped.baixado) { const v = D.precoEfetivo(pr); if (v !== null) it.preco = v; }   // pedido confirmado: congela o preço como no resto
+          if (ped.baixado) { const v = D.precoNoPedido(pr, ped); if (v !== null) it.preco = v; }   // pedido confirmado: congela o preço da data do pedido
           ped.itens.push(it);
         }
         salvarJa(ped);
