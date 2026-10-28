@@ -1,0 +1,152 @@
+/* =====================================================================
+   Dopira Gestão · Promoções e cupons
+   ===================================================================== */
+.pm-abas{display:flex;width:100%;margin:0 0 20px}
+.pm-abas label{flex:1}
+.pm-abas span{width:100%;justify-content:center;gap:8px;min-height:42px}
+.pm-abas em{font-style:normal;font-size:15px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:rgba(30,24,20,.1);display:inline-flex;align-items:center;justify-content:center}
+.pm-abas input:checked + span em{background:var(--amarelo);color:var(--carvao)}
+
+.pm-grade{display:grid;gap:36px;grid-template-columns:minmax(0,1fr)}
+.pm-sec{min-width:0}
+.pm-sec-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.pm-sec-cab h3{font-size:24px}
+.pm-sec-cab p{font-size:14px;margin-top:2px}
+.pm-explica,.pm-dica,.pm-regra{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--tinta-2);line-height:1.45}
+.pm-explica{margin:0 0 16px}
+.pm-explica .ic,.pm-dica .ic,.pm-regra .ic{width:18px;height:18px;margin-top:1px;color:var(--casca)}
+.pm-dica{margin-top:16px;font-size:13px;padding:10px 12px;border-radius:var(--r-s);background:var(--cinza)}
+.pm-dica b{color:var(--tinta);letter-spacing:.02em}
+.pm-esp{flex:1}
+.pm-ic{color:var(--tinta-2)}
+.pm-ic:hover{color:var(--tinta)}
+.pm-ic-perigo:hover{color:var(--erro);background:#FBE9E7}
+
+/* celular / tablet: uma aba por vez */
+@media (max-width:959px){
+  .pm[data-aba="cupons"] [data-sec="promocoes"],
+  .pm[data-aba="promocoes"] [data-sec="cupons"]{display:none}
+  .pm > .cab{display:none}
+}
+@media (min-width:960px){
+  .pm-abas{display:none}
+}
+@media (min-width:1200px){
+  .pm-grade{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:start}
+}
+
+/* ---------- ticket do cupom ---------- */
+.tk-lista{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr))}
+@media (min-width:1200px){.tk-lista{grid-template-columns:minmax(0,1fr)}}
+.tk{--furo:var(--papel);position:relative;background:var(--branco);border-radius:var(--r-m);box-shadow:0 1px 2px rgba(30,24,20,.08),0 4px 14px rgba(30,24,20,.06);display:flex;flex-direction:column;min-width:0}
+.tk-topo{display:flex;min-height:132px}
+.tk-valor{flex:none;width:100px;background:var(--laranjeira);color:var(--carvao);border-radius:var(--r-m) 0 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 6px;font-family:var(--display);text-transform:uppercase;line-height:.9;position:relative;
+  background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.08) 0 6px,transparent 6px 12px)}
+.tk-valor::after{content:"";position:absolute;top:10px;bottom:10px;right:-1px;border-right:2px dashed rgba(30,24,20,.28)}
+.tk-num{font-weight:900;font-size:46px;letter-spacing:-.01em;font-variant-numeric:tabular-nums;display:flex;align-items:flex-start}
+.tk-num small{font-size:.5em;margin-top:.12em;margin-left:1px}
+.tk-num-p{font-size:32px}
+.tk-pre{font-weight:800;font-size:18px;margin-bottom:2px}
+.tk-xoff{font-weight:800;font-size:17px;letter-spacing:.14em;margin-top:6px;padding:3px 7px 2px;border:2px solid currentColor;border-radius:6px}
+.tk-corpo{flex:1;min-width:0;padding:14px 16px 12px}
+.tk-l1{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.tk-selo{display:inline-flex;align-items:center;min-height:24px;padding:2px 10px;border-radius:999px;background:var(--amarelo);color:var(--carvao);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.tk-cod{font-family:var(--display);font-weight:900;font-size:30px;line-height:1;letter-spacing:.04em;overflow-wrap:anywhere;text-transform:uppercase}
+.tk-desc{font-size:14px;color:var(--tinta-2);margin-top:4px}
+.tk-regras{list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:13px;font-weight:600}
+.tk-regras li{position:relative;padding-left:12px}
+.tk-regras li::before{content:"";position:absolute;left:0;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--laranjeira)}
+/* picote + recortes laterais */
+.tk-acoes{position:relative;display:flex;align-items:center;gap:4px;padding:6px 8px 6px 14px;border-top:2px dashed var(--cinza-2);flex-wrap:wrap}
+.tk-acoes::before,.tk-acoes::after{content:"";position:absolute;top:-11px;width:20px;height:20px;border-radius:50%;background:var(--furo)}
+.tk-acoes::before{left:-10px;box-shadow:inset -3px 0 3px -2px rgba(30,24,20,.12)}
+.tk-acoes::after{right:-10px;box-shadow:inset 3px 0 3px -2px rgba(30,24,20,.12)}
+.tk-acoes .sw{font-size:15px}
+.tk-div{margin-right:2px}
+
+/* cupom padrão em destaque */
+.tk-dest{background:var(--carvao);color:var(--papel)}
+.tk-dest .tk-valor{background-color:var(--amarelo)}
+.tk-dest .tk-desc{color:var(--fumaca)}
+.tk-dest .tk-cod{color:var(--amarelo)}
+.tk-dest .tk-acoes{border-top-color:rgba(255,255,255,.18)}
+.tk-dest .pm-ic{color:var(--fumaca)}
+.tk-dest .pm-ic:hover{color:var(--papel);background:rgba(255,255,255,.1)}
+.tk-dest .pm-ic-perigo:hover{color:#FFB4A9}
+.tk-dest .sw-t{background:#4A423B}
+.tk-dest .tag-ok{background:rgba(86,99,63,.35);color:#CFE3B8}
+/* desativado / vencido */
+.tk-off .tk-valor,.tk-venc .tk-valor{background-color:var(--cinza-2);color:var(--tinta-2)}
+.tk-off .tk-cod,.tk-venc .tk-cod{color:var(--tinta-2)}
+.tk-dest.tk-off .tk-cod,.tk-dest.tk-venc .tk-cod{color:var(--fumaca)}
+.tk-off .tk-cod{text-decoration:line-through;text-decoration-thickness:2px}
+
+/* ---------- promoções ---------- */
+.pm-lista{display:flex;flex-direction:column;gap:12px}
+.pm-promo{background:var(--branco);border-radius:var(--r-m);box-shadow:var(--sombra);padding:14px 14px 6px;border-left:5px solid var(--laranjeira)}
+.pm-st-agenda{border-left-color:#7C93D6}
+.pm-st-fim,.pm-st-off{border-left-color:var(--cinza-2)}
+.pm-promo-topo{display:flex;gap:12px;align-items:flex-start}
+.pm-pct{flex:none;min-width:72px;height:56px;padding:0 10px;border-radius:12px;background:var(--carvao);color:var(--amarelo);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900}
+.pm-st-fim .pm-pct,.pm-st-off .pm-pct{background:var(--cinza);color:var(--tinta-2)}
+.pm-promo-info{flex:1;min-width:0}
+.pm-promo-info h4{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere}
+.pm-periodo{display:flex;align-items:center;gap:5px;font-size:14px;color:var(--tinta-2);margin-top:4px}
+.pm-periodo .ic{width:15px;height:15px}
+.pm-promo-info .pill{margin-bottom:6px}
+.pm-msg-erro{display:block;margin-top:6px;font-size:13px;font-weight:700;color:var(--erro)}
+.pm-alvo{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;font-weight:600}
+.pm-minis{display:flex;flex:none}
+.pm-minis .mini{border-radius:50%;box-shadow:0 0 0 2px var(--branco)}
+.pm-minis .mini + .mini{margin-left:-8px}
+.pm-ex{list-style:none;margin-top:8px;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.pm-ex li{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.pm-ex li > span{color:var(--tinta-2)}
+.pm-ex s{color:var(--tinta-2);font-size:13px}
+.pm-ex b{font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:.02em;color:var(--casca)}
+.pm-acoes{display:flex;align-items:center;gap:4px;margin-top:8px;padding-top:4px;border-top:1px solid var(--cinza)}
+.pm-acoes .sw{font-size:15px}
+
+.pm-vazio{background:var(--branco);border-radius:var(--r-m);border:2px dashed var(--cinza-2);text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--tinta-2)}
+.pm-vazio > .ic{width:48px;height:48px;color:var(--laranjeira)}
+.pm-vazio h3{color:var(--tinta);font-size:24px}
+.pm-vazio p{max-width:40ch;font-size:15px}
+.pm-vazio .btn{margin-top:6px}
+
+/* ---------- formulários (diálogos) ---------- */
+.pm-rot{font-size:14px;font-weight:700;display:block;margin-bottom:6px}
+.pm-seg{display:flex;width:100%}
+.pm-seg label{flex:1}
+.pm-seg span{width:100%;justify-content:center;text-align:center;font-size:15px;padding:4px 8px}
+.pm-sws{display:flex;flex-direction:column;gap:2px}
+.pm-curto{max-width:200px}
+.pm-fs{border:0;min-width:0}
+.pm-prods{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
+@media (min-width:600px){.pm-prods{grid-template-columns:1fr 1fr}}
+.pm-prod{position:relative;display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 10px;border:1.5px solid #D6D1C8;border-radius:var(--r-s);background:#fff;cursor:pointer}
+.pm-prod input{position:absolute;opacity:0;width:1px;height:1px}
+.pm-prod-t{flex:1;min-width:0;line-height:1.25}
+.pm-prod-t b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-prod-t small{display:block;font-size:12px;color:var(--tinta-2)}
+.pm-check{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid #CFC9BF;display:flex;align-items:center;justify-content:center;color:transparent}
+.pm-check .ic{width:16px;height:16px;stroke-width:3}
+.pm-prod:has(input:checked){border-color:var(--folha);background:#F3F6EE}
+.pm-prod input:checked ~ .pm-check{background:var(--folha);border-color:var(--folha);color:#fff}
+.pm-prod:has(input:focus-visible){outline:3px solid var(--laranjeira);outline-offset:2px}
+
+.pm-previa{background:var(--cinza);border-radius:var(--r-m);padding:12px 14px}
+.pm-previa h4{font-family:var(--display);font-weight:800;font-size:17px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px}
+.pm-previa-l{list-style:none;display:flex;flex-direction:column}
+.pm-previa-l li{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--cinza-2);flex-wrap:wrap}
+.pm-previa-l li:last-child{border-bottom:0}
+.pm-pn{font-size:14px;font-weight:600}
+.pm-pv{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
+.pm-de{font-size:13px;color:var(--tinta-2);text-decoration:line-through}
+.pm-seta{color:var(--tinta-2)}
+.pm-pv b{font-size:18px;color:var(--casca)}
+.pm-pv small{font-size:12px;color:var(--tinta-2)}
+.pm-nota{flex-basis:100%;text-align:right;font-style:normal;font-size:12px;color:var(--aviso);font-weight:600}
+.pm-sem{font-size:13px;color:var(--aviso);font-weight:700}
+.pm-previa-vazia{font-size:14px}
+.pm-regra{margin-top:8px;font-size:13px}
+.pm-msg-erro[hidden]{display:none}

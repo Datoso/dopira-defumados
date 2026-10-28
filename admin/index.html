@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dopira Gestão</title>
+<meta name="description" content="Painel de gestão da Dopira Defumados: pedidos, catálogo, estoque, preços, cupons e promoções.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1E1814">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dopira Gestão">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/inicio.css">
+<link rel="stylesheet" href="css/pedidos.css">
+<link rel="stylesheet" href="css/catalogo.css">
+<link rel="stylesheet" href="css/promocoes.css">
+</head>
+<body>
+<a class="pular" href="#tela">Pular para o conteúdo</a>
+<div class="faixa-exemplo" id="faixaExemplo" hidden>Dados de exemplo (fictícios) · <a href="#/ajustes">apagar e começar de verdade</a></div>
+
+<header class="topo">
+  <a class="btn-ic voltar" id="btnVoltar" href="#/inicio" aria-label="Voltar" hidden></a>
+  <a class="marca" href="#/inicio" aria-label="Dopira Gestão, início"><img src="../img/logo.png" alt="" width="36" height="36"><span>Dopira <small>Gestão</small></span></a>
+  <h1 class="titulo-topo" id="tituloTopo">Início</h1>
+  <div class="topo-acoes">
+    <a class="btn-ic" id="btnSite" target="_blank" rel="noopener" aria-label="Abrir o site" title="Abrir o site"></a>
+    <a class="btn-ic" href="#/ajustes" aria-label="Ajustes e backup" title="Ajustes e backup"></a>
+  </div>
+</header>
+
+<nav class="nav-lateral" id="navLateral" aria-label="Principal"></nav>
+<main id="tela" tabindex="-1"></main>
+<nav class="nav-baixo" id="navBaixo" aria-label="Principal"></nav>
+
+<dialog id="dlg" class="dlg"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/dados.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  // ícones do topo
+  document.getElementById('btnVoltar').innerHTML = UI.ICON.voltar;
+  const s = document.getElementById('btnSite'); s.innerHTML = UI.ICON.site; s.href = UI.URL_SITE;
+  document.querySelector('.topo-acoes a[href="#/ajustes"]').innerHTML = UI.ICON.ajustes;
+</script>
+<script src="js/inicio.js"></script>
+<script src="js/pedidos.js"></script>
+<script src="js/catalogo.js"></script>
+<script src="js/promocoes.js"></script>
+<script src="js/ajustes.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -6,6 +6,7 @@
 <title>Dopira Defumados · Defumados artesanais em Pirapozinho</title>
 <meta name="description" content="Brisket, beef ribs, panceta, costelinha e linguiça calabresa defumados em lenha de laranjeira, sob encomenda. Entrega aos domingos em Pirapozinho-SP.">
 <meta name="theme-color" content="#1E1814">
+<meta name="robots" content="noindex, nofollow">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -372,6 +373,8 @@ main:focus{outline:none}
 .campo label,.campo .rot{font-weight:600;font-size:15px}
 .campo input,.campo textarea,.campo select{font-size:16px;padding:12px 14px;border:1.5px solid #D6D1C8;border-radius:var(--r-s);background:#fff;width:100%}
 .campo input:focus,.campo textarea:focus,.campo select:focus{outline:none;border-color:var(--laranjeira);box-shadow:0 0 0 3px rgba(240,124,43,.2)}
+.cupom-msg{font-size:14px;color:var(--erro)}
+.cupom-msg[data-ok="1"]{color:var(--folha);font-weight:700}
 .campo .erro{color:var(--erro);font-size:14px}
 .campo[data-invalido] input{border-color:var(--erro)}
 .dois{display:grid;grid-template-columns:1fr 1fr;gap:18px}
@@ -675,12 +678,25 @@ const POSTS = [
 
 /* ================= ESTADO (salvo no navegador) ================= */
 const LS = 'dopira-encomenda-v2';
-let E = { itens:{}, domingo:null, modo:'Entrega', endereco:'', referencia:'', nome:'', telefone:'', obs:'', etapa:1 };
+let E = { itens:{}, domingo:null, modo:'Entrega', endereco:'', referencia:'', nome:'', telefone:'', obs:'', cupom:'', etapa:1 };
 try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && typeof s === 'object') E = { ...E, ...s }; } catch (e) {}
 if (!E.itens || typeof E.itens !== 'object') E.itens = {};
 Object.keys(E.itens).forEach(k => { if (!tem(P, k) || !(E.itens[k] > 0)) delete E.itens[k]; });
 if (![1,2,3].includes(E.etapa)) E.etapa = 1;
 const salvar = () => { try { localStorage.setItem(LS, JSON.stringify(E)); } catch (e) {} };
+/* cupons: os padrões valem sempre; se o app de gestão estiver neste aparelho, usa os cupons de lá */
+const CUPONS_PADRAO = [{ codigo:'PRIMEIRACOMPRA', tipo:'%', valor:20, ativo:true, descricao:'20% de desconto no pedido' }];
+function cupons(){
+  try { const a = JSON.parse(localStorage.getItem('dopira-admin-v1') || 'null'); if (a && Array.isArray(a.cupons)) return a.cupons; } catch (e) {}
+  return CUPONS_PADRAO;
+}
+const normCupom = c => String(c || '').toUpperCase().replace(/\s+/g, '');
+function cupomValido(){
+  const c = normCupom(E.cupom); if (!c) return null;
+  const hoje = new Date().toISOString().slice(0, 10);
+  return cupons().find(x => x.ativo && normCupom(x.codigo) === c && (!x.validade || x.validade >= hoje)) || null;
+}
+const descCupom = x => x.descricao || (x.tipo === '%' ? `${x.valor}% de desconto no pedido` : `R$ ${Number(x.valor).toFixed(2).replace('.', ',')} de desconto no pedido`);
 const totalItens = () => Object.values(E.itens).reduce((a, b) => a + b, 0);
 
 /* ================= DATAS / PRAZO ================= */
@@ -1037,6 +1053,7 @@ function renderEtapa(focar = true){
           <div class="campo" id="c-nome"><label for="f-nome">Seu nome</label><input id="f-nome" autocomplete="name" value="${esc(E.nome)}"><span class="erro" hidden>Como a gente te chama?</span></div>
           <div class="campo"><label for="f-tel">Telefone <span class="muted">(opcional)</span></label><input id="f-tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="(18) 9 0000-0000" value="${esc(E.telefone)}"></div>
         </div>
+        <div class="campo" id="c-cupom"><label for="f-cupom">Cupom de desconto <span class="muted">(opcional)</span></label><input id="f-cupom" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ex.: PRIMEIRACOMPRA" value="${esc(E.cupom)}"><span class="cupom-msg" id="cupomMsg" aria-live="polite"></span></div>
         <div class="campo"><label for="f-obs">Observação <span class="muted">(opcional)</span></label><textarea id="f-obs" rows="3" placeholder="Ex.: almoço pra 10 pessoas, prefere mais magro…">${esc(E.obs)}</textarea></div>
       </div>
       <div class="nav-etapa"><button class="btn btn-2" type="button" data-ir="2">Voltar</button><a class="btn btn-1" id="enviarZap" href="#" target="_blank" rel="noopener">${ICON_ZAP} Enviar pelo WhatsApp</a></div></div>`;
@@ -1052,6 +1069,7 @@ function mensagem(){
   if (E.domingo) m += `\n📅 Para ${fmtDomingo(E.domingo)}`;
   m += `\n${E.modo === 'Entrega' ? `🛵 Entrega${E.endereco ? `: ${E.endereco}` : ''}${E.referencia ? ` (ref.: ${E.referencia})` : ''}` : '📍 Retirada'}`;
   if (E.telefone) m += `\n📞 ${E.telefone}`;
+  const cv = cupomValido(); if (cv) m += `\n🏷️ Cupom ${normCupom(cv.codigo)} (${descCupom(cv)})`;
   if (E.obs) m += `\n📝 ${E.obs}`;
   return m;
 }
@@ -1063,11 +1081,22 @@ function renderResumo(){
     <dl>
       <dt>Domingo</dt><dd>${E.domingo ? fmtDomingo(E.domingo).replace('domingo, ','') : '—'}</dd>
       <dt>Receber</dt><dd>${E.modo}${E.modo === 'Entrega' && E.endereco ? ` · ${esc(E.endereco)}` : ''}</dd>
+      ${cupomValido() ? `<dt>Cupom</dt><dd>${esc(normCupom(E.cupom))} · ${esc(descCupom(cupomValido()))}</dd>` : ''}
       <dt>Valor</dt><dd>Confirmado no WhatsApp</dd>
     </dl>
     ${E.etapa === 3 ? `<div><span class="muted" style="font-size:14px">Mensagem que vai pro WhatsApp:</span><div class="preview" style="margin-top:6px">${esc(mensagem())}</div></div>` : ''}
     ${prazoHTML()}`;
+  const cm = $('#cupomMsg'); if (cm){ const cv = cupomValido(); cm.textContent = !E.cupom.trim() ? '' : cv ? `Cupom aplicado: ${descCupom(cv)}.` : 'Cupom não encontrado ou fora da validade.'; cm.dataset.ok = cv ? '1' : ''; }
   const z = $('#enviarZap'); if (z) z.href = `https://wa.me/${ZAP}?text=${encodeURIComponent(mensagem())}`;
+}
+/* guarda a encomenda enviada para o app de gestão (mesmo aparelho) */
+function registrarPedido(){
+  try {
+    const k = 'dopira-pedidos-site', l = JSON.parse(localStorage.getItem(k) || '[]');
+    const cv = cupomValido();
+    l.push({ id:'s' + Date.now().toString(36), criado:new Date().toISOString(), itens:{ ...E.itens }, domingo:E.domingo, modo:E.modo, endereco:E.endereco, referencia:E.referencia, nome:E.nome, telefone:E.telefone, obs:E.obs, cupom: cv ? normCupom(cv.codigo) : '' });
+    localStorage.setItem(k, JSON.stringify(l.slice(-200)));
+  } catch (e) {}
 }
 function validar(etapa){
   if (etapa === 1) return totalItens() > 0;
@@ -1088,7 +1117,8 @@ document.addEventListener('click', e => {
   const dom = e.target.closest('[data-dom]');
   if (dom && !dom.disabled){ E.domingo = dom.dataset.dom; salvar(); $$('[data-dom]').forEach(b => b.setAttribute('aria-checked', b === dom)); renderResumo(); return; }
   const z = e.target.closest('#enviarZap');
-  if (z && !validar(3)){ e.preventDefault(); }
+  if (z && !validar(3)){ e.preventDefault(); return; }
+  if (z) registrarPedido();
 });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-foto]'); if (!b) return;
@@ -1101,7 +1131,7 @@ document.addEventListener('click', e => {
   if (document.startViewTransition && !reduz.matches) document.startViewTransition(troca).ready.catch(() => {}); else troca();
 });
 document.addEventListener('input', e => {
-  const t = e.target, map = { 'f-end':'endereco', 'f-ref':'referencia', 'f-nome':'nome', 'f-tel':'telefone', 'f-obs':'obs' };
+  const t = e.target, map = { 'f-end':'endereco', 'f-ref':'referencia', 'f-nome':'nome', 'f-tel':'telefone', 'f-obs':'obs', 'f-cupom':'cupom' };
   if (map[t.id]){ E[map[t.id]] = t.value; salvar(); const c = t.closest('.campo'); if (c && t.value.trim()){ delete c.dataset.invalido; const er = $('.erro', c); if (er) er.hidden = true; } renderResumo(); }
   if (t.name === 'modo'){ E.modo = t.value; salvar(); $('#c-end').hidden = $('#c-ref').hidden = E.modo === 'Retirada'; renderResumo(); }
 });

@@ -1,0 +1,237 @@
+/* =====================================================================
+   Dopira Gestão · estilos base e componentes compartilhados
+   Módulos usam estas classes e põem o que for só deles em css/<modulo>.css
+   ===================================================================== */
+@font-face{font-family:"Big Shoulders";src:url(../fonts/bsd.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Literata";src:url(../fonts/literata.woff2) format("woff2");font-weight:200 900;font-display:swap}
+@font-face{font-family:"Literata";src:url(../fonts/literata-i.woff2) format("woff2");font-weight:200 900;font-style:italic;font-display:swap}
+
+:root{
+  --carvao:#1E1814; --casca:#5A2E1E; --laranjeira:#F07C2B; --laranja-esc:#C85A12; --folha:#56633F;
+  --fumaca:#B9B4AA; --cinza:#EDEBE6; --cinza-2:#E2DED7; --papel:#FAF9F7; --branco:#fff; --amarelo:#F8C505;
+  --tinta:#231C17; --tinta-2:#5E554D; --erro:#B3261E; --ok:#3F6B2A; --aviso:#9A5B00;
+  --display:"Big Shoulders",Impact,"Arial Narrow",sans-serif;
+  --texto:"Literata",Georgia,serif;
+  --r-s:10px; --r-m:16px; --r-l:22px;
+  --sombra:0 1px 2px rgba(30,24,20,.06),0 6px 20px rgba(30,24,20,.07);
+  --topo:60px; --baixo:68px; --lateral:240px;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(var(--topo) + 12px)}
+body{font-family:var(--texto);font-size:16px;line-height:1.5;color:var(--tinta);background:var(--papel);min-height:100dvh;-webkit-font-smoothing:antialiased}
+img{display:block;max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--laranjeira);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pular{position:absolute;left:-999px;top:8px;z-index:200;background:var(--carvao);color:var(--papel);padding:10px 16px;border-radius:var(--r-s)}
+.pular:focus{left:8px}
+h1,h2,h3{font-family:var(--display);font-weight:800;line-height:1.05;text-transform:uppercase;letter-spacing:.01em}
+.muted{color:var(--tinta-2)}
+.num{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+/* ---------- faixa de exemplo ---------- */
+.faixa-exemplo{background:var(--amarelo);color:var(--carvao);text-align:center;font-size:14px;font-weight:600;padding:6px 12px}
+.faixa-exemplo a{font-weight:800}
+
+/* ---------- topo ---------- */
+.topo{position:sticky;top:0;z-index:50;height:var(--topo);background:var(--carvao);color:var(--papel);display:flex;align-items:center;gap:8px;padding:0 12px;padding-top:env(safe-area-inset-top);box-sizing:content-box}
+.marca{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
+.marca img{width:36px;height:36px;border-radius:50%;box-shadow:0 0 0 2px rgba(248,197,5,.35)}
+.marca small{font-weight:600;color:var(--amarelo);font-size:.8em}
+.titulo-topo{display:none;font-size:22px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topo-acoes{margin-left:auto;display:flex;gap:4px}
+.btn-ic{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:0;background:transparent;color:inherit;text-decoration:none;flex:none}
+.btn-ic:hover{background:rgba(127,127,127,.15)}
+.btn-ic[hidden]{display:none}
+.ic{width:22px;height:22px;flex:none}
+
+/* ---------- navegação ---------- */
+.nav-lateral{display:none}
+.nav-baixo{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--carvao);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom);border-top:1px solid rgba(255,255,255,.08)}
+.nav-baixo a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:var(--baixo);color:var(--fumaca);text-decoration:none;font-size:12px;font-weight:600}
+.nav-baixo a[aria-current]{color:var(--amarelo)}
+.nav-baixo a[aria-current]::before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--amarelo)}
+.badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--laranjeira);color:var(--carvao);font:800 12px/20px var(--texto);text-align:center}
+.badge[hidden]{display:none}
+
+/* ---------- área principal ---------- */
+#tela:focus,#tela:focus-visible{outline:none}
+main{display:block;padding:20px 16px calc(var(--baixo) + 32px + env(safe-area-inset-bottom));max-width:1180px;margin:0 auto;outline:none;view-transition-name:tela}
+.cab{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.cab h2{font-size:clamp(32px,6vw,48px)}
+.cab p{color:var(--tinta-2);margin-top:4px}
+.secao{margin-top:28px}
+.secao > h3{font-size:22px;margin-bottom:12px;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.grade{display:grid;gap:12px}
+.grade-2{display:grid;gap:12px;grid-template-columns:1fr}
+
+/* ---------- botões ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:10px 20px;border-radius:999px;border:2px solid transparent;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:.03em;text-transform:uppercase;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.btn .ic{width:20px;height:20px}
+.btn-1{background:var(--laranjeira);color:var(--carvao)}
+.btn-1:hover{background:#FF8C3A}
+.btn-2{background:transparent;border-color:currentColor;color:var(--tinta)}
+.btn-2:hover{background:rgba(30,24,20,.06)}
+.btn-3{background:var(--carvao);color:var(--papel)}
+.btn-3:hover{background:#000}
+.btn-zap{background:#1F9D55;color:#fff}
+.btn-perigo{background:var(--erro);color:#fff}
+.btn-sm{min-height:44px;padding:6px 16px;font-size:16px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-link{background:none;border:0;color:var(--laranja-esc);font-weight:700;text-decoration:underline;padding:10px 4px;min-height:44px}
+
+/* ---------- cartões e linhas ---------- */
+.card{background:var(--branco);border-radius:var(--r-m);box-shadow:var(--sombra);padding:16px}
+.card-escuro{background:var(--carvao);color:var(--papel);border-radius:var(--r-m);padding:18px}
+.lista{display:flex;flex-direction:column;gap:10px}
+.linha{display:flex;align-items:center;gap:12px;background:var(--branco);border-radius:var(--r-m);box-shadow:var(--sombra);padding:12px 14px;text-decoration:none;color:inherit;min-height:64px;transition:transform .15s var(--ease),box-shadow .15s}
+a.linha:hover{box-shadow:0 2px 4px rgba(30,24,20,.08),0 10px 28px rgba(30,24,20,.12)}
+.linha .meio{flex:1;min-width:0}
+.linha .meio b{display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linha .meio span{display:block;font-size:14px;color:var(--tinta-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linha .fim{text-align:right;flex:none}
+
+/* ---------- números (indicadores) ---------- */
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat{background:var(--branco);border-radius:var(--r-m);box-shadow:var(--sombra);padding:14px 16px;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:2px;min-height:96px}
+.stat .rot{font-size:13px;color:var(--tinta-2);font-weight:600}
+.stat .val{font-family:var(--display);font-weight:800;font-size:36px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .sub{font-size:13px;color:var(--tinta-2)}
+.stat[data-alerta]{box-shadow:inset 0 0 0 2px var(--laranjeira),var(--sombra)}
+
+/* ---------- chips de filtro ---------- */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;margin:0 -2px 8px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--cinza-2);background:var(--branco);font-size:14px;font-weight:700;color:var(--tinta-2)}
+.chip[aria-pressed="true"]{background:var(--carvao);border-color:var(--carvao);color:var(--papel)}
+.chip .n{font-family:var(--display);font-size:15px;opacity:.75}
+
+/* ---------- pílulas de status ---------- */
+.pill{display:inline-flex;align-items:center;min-height:24px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;background:var(--cinza);color:var(--tinta-2)}
+.st-novo{background:#FDE7D3;color:#8A3A00}
+.st-confirmado{background:#E4E9F7;color:#24408E}
+.st-pronto{background:#FFF1BF;color:#6B5200}
+.st-entregue{background:#E1EDD8;color:var(--ok)}
+.st-cancelado{background:#F3DCDA;color:var(--erro)}
+.tag-ok{background:#E1EDD8;color:var(--ok)}
+.tag-baixo{background:#FFF1BF;color:#6B5200}
+.tag-zerado{background:#F3DCDA;color:var(--erro)}
+.tag-promo{background:var(--laranjeira);color:var(--carvao)}
+
+/* ---------- formulários ---------- */
+.form{display:flex;flex-direction:column;gap:14px}
+.form-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.campo{display:flex;flex-direction:column;gap:6px;min-width:0}
+.campo label{font-size:14px;font-weight:700}
+.campo-in{position:relative;display:flex;align-items:center}
+.campo input,.campo select,.campo textarea,select.sel{width:100%;font-size:16px;padding:11px 14px;min-height:46px;border:1.5px solid #D6D1C8;border-radius:var(--r-s);background:#fff}
+.campo textarea{min-height:84px;resize:vertical}
+.campo .suf{position:absolute;right:12px;color:var(--tinta-2);font-size:14px;pointer-events:none}
+.campo-in:has(.suf) input{padding-right:52px}
+.campo input:focus,.campo select:focus,.campo textarea:focus,select.sel:focus{outline:none;border-color:var(--laranjeira);box-shadow:0 0 0 3px rgba(240,124,43,.2)}
+.campo .dica{font-size:13px;color:var(--tinta-2)}
+.campo[data-erro] input{border-color:var(--erro)}
+.seg{display:inline-flex;background:var(--cinza);border-radius:999px;padding:4px;gap:4px}
+.seg label{position:relative}
+.seg input{position:absolute;opacity:0;inset:0}
+.seg span{display:inline-flex;align-items:center;min-height:38px;padding:4px 16px;border-radius:999px;font-weight:700;font-size:15px;cursor:pointer}
+.seg input:checked + span{background:var(--carvao);color:var(--papel)}
+.seg input:focus-visible + span{outline:3px solid var(--laranjeira)}
+/* interruptor */
+.sw{display:inline-flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;font-weight:600}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw-t{width:46px;height:28px;border-radius:14px;background:#CFC9BF;position:relative;flex:none;transition:background .2s}
+.sw-t::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s var(--ease)}
+.sw input:checked + .sw-t{background:var(--folha)}
+.sw input:checked + .sw-t::after{transform:translateX(18px)}
+.sw input:focus-visible + .sw-t{outline:3px solid var(--laranjeira);outline-offset:2px}
+/* passo +/- */
+.passo{display:inline-flex;align-items:center;border:1.5px solid #D6D1C8;border-radius:999px;background:#fff}
+.passo button{width:44px;height:44px;border:0;background:none;display:inline-flex;align-items:center;justify-content:center;border-radius:50%}
+.passo input{width:64px;text-align:center;border:0;font-family:var(--display);font-weight:800;font-size:20px;background:none;min-height:44px}
+.passo input:focus{outline:none}
+
+/* ---------- miniatura ---------- */
+.mini{width:var(--t);height:var(--t);border-radius:12px;background:var(--casca);color:var(--amarelo);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex:none;position:relative;font-family:var(--display);font-weight:900;font-size:calc(var(--t) * .38)}
+.mini::before{content:attr(data-ini)}
+.mini img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+/* ---------- vazio ---------- */
+.vazio{text-align:center;padding:40px 16px;color:var(--tinta-2);display:flex;flex-direction:column;align-items:center;gap:10px}
+.vazio .ic{width:44px;height:44px;color:var(--fumaca)}
+.vazio h3{color:var(--tinta);font-size:24px}
+
+/* ---------- aviso ---------- */
+.aviso{display:flex;gap:10px;align-items:flex-start;background:#FFF6E0;border-left:4px solid var(--amarelo);border-radius:var(--r-s);padding:12px 14px;font-size:15px}
+.aviso .ic{color:var(--aviso);margin-top:1px}
+.aviso-erro{background:#FBE9E7;border-color:var(--erro)}
+.aviso-erro .ic{color:var(--erro)}
+
+/* ---------- tabela simples ---------- */
+.tabela{width:100%;border-collapse:collapse;font-size:15px}
+.tabela th{text-align:left;font-size:13px;color:var(--tinta-2);font-weight:700;padding:8px;border-bottom:1.5px solid var(--cinza-2)}
+.tabela td{padding:10px 8px;border-bottom:1px solid var(--cinza)}
+.tabela .dir{text-align:right}
+
+/* ---------- diálogo ---------- */
+.dlg{border:0;padding:0;background:transparent;max-width:none;max-height:none;width:100%;height:100%;margin:0}
+.dlg::backdrop{background:rgba(20,15,12,.6)}
+.dlg[open]{display:flex;align-items:flex-end;justify-content:center}
+.dlg-cx{background:var(--papel);width:100%;max-height:92dvh;display:flex;flex-direction:column;border-radius:var(--r-l) var(--r-l) 0 0;animation:sobe .28s var(--ease);padding-bottom:env(safe-area-inset-bottom)}
+.dlg-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 12px 8px 20px}
+.dlg-topo h2{font-size:26px}
+.dlg-corpo{padding:8px 20px 16px;overflow:auto;flex:1}
+.dlg-acoes{display:flex;gap:10px;padding:12px 20px 16px;border-top:1px solid var(--cinza-2);flex-wrap:wrap}
+.dlg-acoes .btn{flex:1}
+.copiavel{width:100%;font-size:15px;padding:12px;border-radius:var(--r-s);border:1.5px solid #D6D1C8}
+@keyframes sobe{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;bottom:calc(var(--baixo) + 16px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--carvao);color:var(--papel);padding:12px 20px;border-radius:999px;font-weight:600;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s,transform .25s var(--ease);z-index:300;max-width:calc(100% - 32px);text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast[data-tipo="erro"]{background:var(--erro)}
+
+/* ---------- transições ---------- */
+::view-transition-old(tela){animation:.18s ease both sai}
+::view-transition-new(tela){animation:.28s var(--ease) both entra}
+@keyframes sai{to{opacity:0;transform:translateY(-6px)}}
+@keyframes entra{from{opacity:0;transform:translateY(10px)}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  ::view-transition-old(tela),::view-transition-new(tela){animation:none}
+}
+
+/* ---------- telas médias ---------- */
+@media (min-width:600px){
+  .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .grade-2{grid-template-columns:1fr 1fr}
+  .dlg[open]{align-items:center}
+  .dlg-cx{max-width:560px;border-radius:var(--r-l);max-height:88dvh}
+  main{padding-left:24px;padding-right:24px}
+}
+/* celular: título da tela no topo */
+@media (max-width:959px){
+  .topo .marca span{display:none}
+  .titulo-topo{display:block}
+  .topo:has(.voltar:not([hidden])) .marca{display:none}
+}
+/* ---------- PC: menu lateral ---------- */
+@media (min-width:960px){
+  .nav-baixo{display:none}
+  .topo{padding-left:20px}
+  .nav-lateral{display:flex;flex-direction:column;gap:4px;position:fixed;top:var(--topo);bottom:0;left:0;width:var(--lateral);background:var(--carvao);padding:16px 12px;z-index:40}
+  .nav-lateral a{position:relative;display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 14px;border-radius:var(--r-s);color:var(--fumaca);text-decoration:none;font-weight:600}
+  .nav-lateral a:hover{background:rgba(255,255,255,.06);color:var(--papel)}
+  .nav-lateral a[aria-current]{background:rgba(248,197,5,.12);color:var(--amarelo)}
+  .nav-lateral .badge{position:static;margin-left:auto}
+  .nav-fim{margin-top:auto;display:flex;flex-direction:column;gap:4px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px}
+  .nav-site{color:var(--papel)!important}
+  main{margin-left:var(--lateral);padding:32px 40px 64px;max-width:calc(1180px + var(--lateral))}
+  .topo .btn-ic[href="#/ajustes"]{display:none}
+  .toast{bottom:24px;left:calc(50% + var(--lateral) / 2)}
+  .faixa-exemplo{position:fixed;left:12px;width:calc(var(--lateral) - 24px);bottom:150px;z-index:60;border-radius:12px;padding:10px 14px}
+}
