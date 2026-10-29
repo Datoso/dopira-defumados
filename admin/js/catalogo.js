@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · Catálogo e estoque
+   Sistema Dopira · Catálogo e estoque
    Telas: #/catalogo (lista, filtros, ajuste rápido de estoque)
           #/precos (edição rápida de preço e desconto, um produto por vez)
           #/produto/ID (edição, promoções, estoque e histórico)

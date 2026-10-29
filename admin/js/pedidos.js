@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · módulo Pedidos
+   Sistema Dopira · módulo Pedidos
    Telas: #/pedidos (lista agrupada por domingo) · #/pedido/ID (detalhe e edição)
    ===================================================================== */
 (function () {

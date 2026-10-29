@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · Início (painel do dia)
+   Sistema Dopira · Início (painel do dia)
    Saudação, primeiros passos, indicadores, produção do domingo,
    previsão do tempo (Open-Meteo, com cache de 1 h), atalho para o site
    e últimos pedidos.

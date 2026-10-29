@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · camada de dados (compartilhada por todos os módulos)
+   Sistema Dopira · camada de dados (compartilhada por todos os módulos)
    Tudo fica salvo no navegador deste aparelho (localStorage).
    ===================================================================== */
 (function () {

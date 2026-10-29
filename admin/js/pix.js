@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · Pix "copia e cola" (BR Code estático, padrão do Banco Central)
+   Sistema Dopira · Pix "copia e cola" (BR Code estático, padrão do Banco Central)
    Gera o código com o valor e o número do pedido. Não precisa de banco nem
    de internet: o cliente cola o código (ou lê o QR) no app do banco dele.
    Uso:

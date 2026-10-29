@@ -1,7 +1,7 @@
 {
-  "name": "Dopira Gestão",
-  "short_name": "Dopira Gestão",
-  "description": "Pedidos, catálogo, estoque, preços, cupons e promoções da Dopira Defumados.",
+  "name": "Sistema Dopira",
+  "short_name": "Sistema Dopira",
+  "description": "Sistema da Dopira Defumados: recebe e organiza os pedidos, catálogo, estoque, preços, cupons e Pix.",
   "lang": "pt-BR",
   "id": "./",
   "start_url": "./index.html#/inicio",

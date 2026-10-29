@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · roteador e inicialização
+   Sistema Dopira · roteador e inicialização
    Cada módulo registra telas em window.TELAS:
      TELAS['pedidos'] = {
        titulo: 'Pedidos' | (params) => string,
@@ -52,8 +52,8 @@ function desenhar(animar) {
     const main = $('#tela');
     main.innerHTML = tela.render(r.params);
     if (tela.montar) tela.montar(main, r.params);
-    $('#tituloTopo').textContent = titulo || 'Dopira Gestão';
-    document.title = `${titulo ? titulo + ' · ' : ''}Dopira Gestão`;
+    $('#tituloTopo').textContent = titulo || 'Sistema Dopira';
+    document.title = `${titulo ? titulo + ' · ' : ''}Sistema Dopira`;
     const v = $('#btnVoltar'); v.hidden = !tela.voltar; if (tela.voltar) v.href = tela.voltar;
     $$('[data-nav]').forEach(a => { if (a.dataset.nav === tela.nav) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     atualizarBadge(); faixaExemplo();

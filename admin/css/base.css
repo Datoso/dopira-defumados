@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · estilos base e componentes compartilhados
+   Sistema Dopira · estilos base e componentes compartilhados
    Módulos usam estas classes e põem o que for só deles em css/<modulo>.css
    ===================================================================== */
 @font-face{font-family:"Big Shoulders";src:url(../fonts/bsd.woff2) format("woff2");font-weight:100 900;font-display:swap}

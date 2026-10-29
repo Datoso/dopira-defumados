@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · Ajustes
+   Sistema Dopira · Ajustes
    Pix para receber, backup (baixar/restaurar), dados de exemplo,
    apagar tudo, instalar o app (PWA) e sobre.
    ===================================================================== */
@@ -48,14 +48,14 @@ async function pedirInstalacao() {
 function mostrarInstrucoes() {
   const android = `<li class="aj-inst"><b>Android (Chrome)</b><span>Toque no menu <kbd>⋮</kbd> no canto de cima e escolha <b>Instalar app</b> (ou <b>Adicionar à tela inicial</b>).</span></li>`;
   const ios = `<li class="aj-inst"><b>iPhone (Safari)</b><span>Toque em <b>Compartilhar</b> <kbd>⬆︎</kbd> na barra de baixo e escolha <b>Adicionar à Tela de Início</b>.</span></li>`;
-  const pc = `<li class="aj-inst"><b>Computador (Chrome ou Edge)</b><span>Clique no ícone de instalar na barra de endereço, ou no menu <kbd>⋮</kbd> → <b>Instalar Dopira Gestão</b>.</span></li>`;
+  const pc = `<li class="aj-inst"><b>Computador (Chrome ou Edge)</b><span>Clique no ícone de instalar na barra de endereço, ou no menu <kbd>⋮</kbd> → <b>Instalar Sistema Dopira</b>.</span></li>`;
   const aviso = location.protocol !== 'https:'
     ? `<p class="aviso">${ICON.alerta}<span>A instalação só funciona com o app aberto no endereço publicado (https), não pelo arquivo no computador.</span></p>` : '';
   UI.abrirDialogo({
     titulo: 'Instalar o app',
     html: `${aviso}<p class="aj-dlg-p">Abra este endereço no navegador do celular e siga o passo do seu aparelho:</p>
       <ol class="aj-inst-lista">${ehIOS() ? ios + android : android + ios}${pc}</ol>
-      <p class="muted aj-dlg-p">Depois disso, o Dopira Gestão abre direto pelo ícone, em tela cheia.</p>`,
+      <p class="muted aj-dlg-p">Depois disso, o Sistema Dopira abre direto pelo ícone, em tela cheia.</p>`,
     botoes: [{ texto: 'Entendi', classe: 'btn-1', valor: null }]
   });
 }
@@ -180,7 +180,7 @@ async function restaurarBackup(arquivo) {
     obj = JSON.parse(await arquivo.text());
     if (!obj || typeof obj !== 'object' || !Array.isArray(obj.produtos)) throw new Error('formato');
   } catch (e) {
-    UI.abrirDialogo({ titulo: 'Arquivo inválido', html: `<p class="aviso aviso-erro">${ICON.alerta}<span>“${esc(arquivo.name)}” não é um backup do Dopira Gestão. Escolha o arquivo <b>dopira-gestao-backup-….json</b> baixado neste app.</span></p>`, botoes: [{ texto: 'Fechar', classe: 'btn-2', valor: null }] });
+    UI.abrirDialogo({ titulo: 'Arquivo inválido', html: `<p class="aviso aviso-erro">${ICON.alerta}<span>“${esc(arquivo.name)}” não é um backup do Sistema Dopira. Escolha o arquivo <b>dopira-gestao-backup-….json</b> baixado neste app.</span></p>`, botoes: [{ texto: 'Fechar', classe: 'btn-2', valor: null }] });
     return;
   }
   const n = k => Array.isArray(obj[k]) ? obj[k].length : 0;
@@ -272,7 +272,7 @@ function render() {
 
       ${instalado ? '' : `<section class="card aj-card" aria-labelledby="tInst">
         <h3 id="tInst">${IC.celular} Instalar o app</h3>
-        <p>Coloque o Dopira Gestão na tela inicial do celular: abre em tela cheia, como um aplicativo.</p>
+        <p>Coloque o Sistema Dopira na tela inicial do celular: abre em tela cheia, como um aplicativo.</p>
         <div class="aj-acoes"><button type="button" class="btn btn-3" data-instalar>${IC.celular} ${promptInstalar ? 'Instalar agora' : 'Como instalar'}</button></div>
       </section>`}
 
@@ -286,7 +286,7 @@ function render() {
     <section class="aj-sobre" aria-labelledby="tSobre">
       <img src="../img/logo.png" alt="" width="48" height="48" onerror="this.remove()">
       <div>
-        <h3 id="tSobre">Dopira Gestão <small>· protótipo de teste</small></h3>
+        <h3 id="tSobre">Sistema Dopira <small>· protótipo de teste</small></h3>
         <p>${est.produtos.length} produtos · ${est.pedidos.length} pedidos · ${esc(tamanho())} salvos neste navegador</p>
         <a class="btn-link" href="${esc(UI.URL_SITE)}" target="_blank" rel="noopener">Abrir o site da do'Pira Defumados</a>
       </div>

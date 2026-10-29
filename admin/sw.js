@@ -1,12 +1,12 @@
-// Dopira Gestão: funciona sem internet depois da primeira visita.
+// Sistema Dopira: funciona sem internet depois da primeira visita.
 // Página e scripts: rede primeiro (pega a versão nova), cache se estiver offline.
-const VERSAO = 'dopira-gestao-v5';
+const VERSAO = 'dopira-gestao-v6';
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
   './css/base.css', './css/inicio.css', './css/pedidos.css', './css/catalogo.css', './css/promocoes.css',
   './js/dados.js', './js/ui.js', './js/vendor/qrcode.js', './js/pix.js', './js/inicio.js', './js/pedidos.js', './js/catalogo.js', './js/promocoes.js', './js/ajustes.js', './js/app.js',
   './fonts/bsd.woff2', './fonts/literata.woff2', './fonts/literata-i.woff2',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png', '../img/logo.png'
+  './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png', './img/sistema-logo.png'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSAO).then(c => Promise.all(ARQUIVOS.map(u => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));

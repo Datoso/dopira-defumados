@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · Promoções e cupons  (#/promocoes)
+   Sistema Dopira · Promoções e cupons  (#/promocoes)
    - Cupons de desconto (D.estado.cupons): o cliente digita no site ao encomendar.
    - Promoções de produtos (D.estado.promocoes): desconto % por período.
    ===================================================================== */

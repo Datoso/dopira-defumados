@@ -1,5 +1,5 @@
 /* =====================================================================
-   Dopira Gestão · peças de interface compartilhadas
+   Sistema Dopira · peças de interface compartilhadas
    ===================================================================== */
 (function () {
 'use strict';
